@@ -3,5 +3,11 @@ name = "vocabbar-cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "vocabbar"
+path = "src/main.rs"
+
 [dependencies]
 vocabbar-core = { path = "../vocabbar-core" }
+clap          = { version = "4", features = ["derive"] }
+anyhow        = "1"
