@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocabbar.local/schemas/deck.v1.schema.json",
+  "title": "vocabbar.deck.v1 card",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["term", "meanings"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable source id, usually <deck_id>:<term>."
+    },
+    "deck_id": {
+      "type": "string"
+    },
+    "term": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language": {
+      "type": "string",
+      "default": "en"
+    },
+    "meanings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "lang": {
+            "type": "string",
+            "default": "zh-CN"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "pronunciation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "us": {
+          "type": "string"
+        },
+        "uk": {
+          "type": "string"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "license": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

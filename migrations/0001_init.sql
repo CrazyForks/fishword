@@ -16,8 +16,12 @@ CREATE TABLE IF NOT EXISTS cards (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     deck_id        INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
     word           TEXT    NOT NULL,
+    language       TEXT    NOT NULL DEFAULT 'en',
     meanings       TEXT    NOT NULL DEFAULT '[]',
     pronunciations TEXT    NOT NULL DEFAULT '[]',
+    tags           TEXT    NOT NULL DEFAULT '[]',
+    source_name    TEXT,
+    source_license TEXT,
     created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -42,5 +46,6 @@ CREATE TABLE IF NOT EXISTS review_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cards_deck_id   ON cards(deck_id);
+CREATE INDEX IF NOT EXISTS idx_cards_deck_word ON cards(deck_id, word);
 CREATE INDEX IF NOT EXISTS idx_card_state_due  ON card_state(due);
 CREATE INDEX IF NOT EXISTS idx_review_log_card ON review_log(card_id);

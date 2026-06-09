@@ -13,13 +13,22 @@ pub struct Pronunciation {
     pub audio_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Source {
+    pub name: String,
+    pub license: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     pub id: i64,
     pub deck_id: i64,
     pub word: String,
+    pub language: String,
     pub meanings: Vec<Meaning>,
     pub pronunciations: Vec<Pronunciation>,
+    pub tags: Vec<String>,
+    pub source: Option<Source>,
     pub created_at: String,
 }
 

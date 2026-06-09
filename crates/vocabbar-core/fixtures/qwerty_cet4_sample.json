@@ -1,0 +1,14 @@
+[
+  {
+    "name": "cancel",
+    "trans": ["取消，撤销；删去"],
+    "usphone": "'kænsl",
+    "ukphone": "'kænsl"
+  },
+  {
+    "name": "abandon",
+    "trans": ["放弃"],
+    "usphone": "ə'bændən",
+    "ukphone": "ə'bændən"
+  }
+]

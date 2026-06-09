@@ -2,9 +2,10 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 use crate::{
-    card::{Card, CardState, Meaning, Pronunciation, ReviewState},
+    card::{Card, CardState, Meaning, Pronunciation, ReviewState, Source},
     deck::Deck,
     error::{Error, Result},
+    importer::{DuplicateStrategy, ImportCard, ImportSummary},
 };
 
 const MIGRATION: &str = include_str!("../../../../migrations/0001_init.sql");
@@ -22,6 +23,7 @@ impl Storage {
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         conn.execute_batch(MIGRATION)?;
+        ensure_card_metadata_columns(&conn)?;
         Ok(Self { conn })
     }
 
@@ -38,9 +40,9 @@ impl Storage {
     // ── Deck ──────────────────────────────────────────────────────────────
 
     pub fn list_decks(&self) -> Result<Vec<Deck>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, created_at FROM decks ORDER BY created_at",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, description, created_at FROM decks ORDER BY created_at")?;
         let decks = stmt
             .query_map([], |row| {
                 Ok(Deck {
@@ -75,15 +77,52 @@ impl Storage {
         Ok(deck)
     }
 
+    pub fn get_deck_by_name(&self, name: &str) -> Result<Option<Deck>> {
+        let result = self.conn.query_row(
+            "SELECT id, name, description, created_at FROM decks WHERE name = ?1",
+            params![name],
+            |row| {
+                Ok(Deck {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            },
+        );
+        match result {
+            Ok(deck) => Ok(Some(deck)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    pub fn ensure_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
+        if let Some(deck) = self.get_deck_by_name(name)? {
+            if deck.description.is_none() && description.is_some() {
+                self.conn.execute(
+                    "UPDATE decks SET description = ?1 WHERE id = ?2",
+                    params![description, deck.id],
+                )?;
+                return self.get_deck_by_name(name)?.ok_or_else(|| {
+                    Error::NotFound(format!("deck disappeared after update: {name}"))
+                });
+            }
+            return Ok(deck);
+        }
+        self.insert_deck(name, description)
+    }
+
     // ── Card ──────────────────────────────────────────────────────────────
 
     pub fn list_cards_by_deck(&self, deck_name: &str) -> Result<Vec<Card>> {
         let mut stmt = self.conn.prepare(
-            "SELECT c.id, c.deck_id, c.word, c.meanings, c.pronunciations, c.created_at
+            "SELECT c.id, c.deck_id, c.word, c.language, c.meanings, c.pronunciations,
+                    c.tags, c.source_name, c.source_license, c.created_at
              FROM cards c
              JOIN decks d ON c.deck_id = d.id
              WHERE d.name = ?1
-             ORDER BY c.created_at",
+             ORDER BY c.created_at, c.id",
         )?;
         let rows = stmt
             .query_map(params![deck_name], |row| {
@@ -94,21 +133,44 @@ impl Storage {
                     row.get::<_, String>(3)?,
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, String>(9)?,
                 ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         rows.into_iter()
-            .map(|(id, deck_id, word, meanings_json, pronunciations_json, created_at)| {
-                Ok(Card {
+            .map(
+                |(
                     id,
                     deck_id,
                     word,
-                    meanings: serde_json::from_str(&meanings_json)?,
-                    pronunciations: serde_json::from_str(&pronunciations_json)?,
+                    language,
+                    meanings_json,
+                    pronunciations_json,
+                    tags_json,
+                    source_name,
+                    source_license,
                     created_at,
-                })
-            })
+                )| {
+                    Ok(Card {
+                        id,
+                        deck_id,
+                        word,
+                        language,
+                        meanings: serde_json::from_str(&meanings_json)?,
+                        pronunciations: serde_json::from_str(&pronunciations_json)?,
+                        tags: serde_json::from_str(&tags_json)?,
+                        source: source_name.map(|name| Source {
+                            name,
+                            license: source_license,
+                        }),
+                        created_at,
+                    })
+                },
+            )
             .collect()
     }
 
@@ -119,11 +181,39 @@ impl Storage {
         meanings: &[Meaning],
         pronunciations: &[Pronunciation],
     ) -> Result<Card> {
-        let meanings_json = serde_json::to_string(meanings)?;
-        let pronunciations_json = serde_json::to_string(pronunciations)?;
+        self.insert_card_with_metadata(
+            deck_id,
+            &ImportCard {
+                word: word.to_string(),
+                language: "en".to_string(),
+                meanings: meanings.to_vec(),
+                pronunciations: pronunciations.to_vec(),
+                tags: Vec::new(),
+                source: None,
+            },
+        )
+    }
+
+    pub fn insert_card_with_metadata(&self, deck_id: i64, card: &ImportCard) -> Result<Card> {
+        let meanings_json = serde_json::to_string(&card.meanings)?;
+        let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
+        let tags_json = serde_json::to_string(&card.tags)?;
         self.conn.execute(
-            "INSERT INTO cards (deck_id, word, meanings, pronunciations) VALUES (?1, ?2, ?3, ?4)",
-            params![deck_id, word, meanings_json, pronunciations_json],
+            "INSERT INTO cards
+             (deck_id, word, language, meanings, pronunciations, tags, source_name, source_license)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                deck_id,
+                card.word,
+                card.language,
+                meanings_json,
+                pronunciations_json,
+                tags_json,
+                card.source.as_ref().map(|source| source.name.as_str()),
+                card.source
+                    .as_ref()
+                    .and_then(|source| source.license.as_deref())
+            ],
         )?;
         let id = self.conn.last_insert_rowid();
 
@@ -133,29 +223,114 @@ impl Storage {
             params![id],
         )?;
 
-        let card = self.conn.query_row(
-            "SELECT id, deck_id, word, meanings, pronunciations, created_at FROM cards WHERE id = ?1",
-            params![id],
-            |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, String>(5)?,
-                ))
-            },
-        )?;
+        self.get_card_by_id(id)?
+            .ok_or_else(|| Error::NotFound(format!("card id {id}")))
+    }
 
-        Ok(Card {
-            id: card.0,
-            deck_id: card.1,
-            word: card.2,
-            meanings: serde_json::from_str(&card.3)?,
-            pronunciations: serde_json::from_str(&card.4)?,
-            created_at: card.5,
-        })
+    pub fn import_cards(
+        &self,
+        deck_name: &str,
+        deck_description: Option<&str>,
+        cards: &[ImportCard],
+        duplicate_strategy: DuplicateStrategy,
+    ) -> Result<ImportSummary> {
+        let deck = self.ensure_deck(deck_name, deck_description)?;
+        let mut summary = ImportSummary {
+            deck_id: deck.id,
+            deck_name: deck.name,
+            input_count: cards.len(),
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
+            merged: 0,
+        };
+
+        for import_card in cards {
+            let existing = self.find_first_card_by_word(deck.id, &import_card.word)?;
+            match (existing, duplicate_strategy) {
+                (None, _) | (Some(_), DuplicateStrategy::Keep) => {
+                    self.insert_card_with_metadata(deck.id, import_card)?;
+                    summary.inserted += 1;
+                }
+                (Some(_), DuplicateStrategy::Skip) => {
+                    summary.skipped += 1;
+                }
+                (Some(existing), DuplicateStrategy::Overwrite) => {
+                    self.update_card_from_import(existing.id, import_card)?;
+                    summary.updated += 1;
+                }
+                (Some(existing), DuplicateStrategy::Merge) => {
+                    let merged = merge_import_card(&existing, import_card);
+                    self.update_card_from_import(existing.id, &merged)?;
+                    summary.merged += 1;
+                }
+            }
+        }
+
+        Ok(summary)
+    }
+
+    fn get_card_by_id(&self, id: i64) -> Result<Option<Card>> {
+        let result = self.conn.query_row(
+            "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
+                    source_name, source_license, created_at
+             FROM cards WHERE id = ?1",
+            params![id],
+            card_from_row,
+        );
+        match result {
+            Ok(card) => Ok(Some(card)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    fn find_first_card_by_word(&self, deck_id: i64, word: &str) -> Result<Option<Card>> {
+        let result = self.conn.query_row(
+            "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
+                    source_name, source_license, created_at
+             FROM cards
+             WHERE deck_id = ?1 AND word = ?2
+             ORDER BY id
+             LIMIT 1",
+            params![deck_id, word],
+            card_from_row,
+        );
+        match result {
+            Ok(card) => Ok(Some(card)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    fn update_card_from_import(&self, id: i64, card: &ImportCard) -> Result<()> {
+        let meanings_json = serde_json::to_string(&card.meanings)?;
+        let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
+        let tags_json = serde_json::to_string(&card.tags)?;
+        self.conn.execute(
+            "UPDATE cards
+             SET word = ?1,
+                 language = ?2,
+                 meanings = ?3,
+                 pronunciations = ?4,
+                 tags = ?5,
+                 source_name = ?6,
+                 source_license = ?7
+             WHERE id = ?8",
+            params![
+                card.word,
+                card.language,
+                meanings_json,
+                pronunciations_json,
+                tags_json,
+                card.source.as_ref().map(|source| source.name.as_str()),
+                card.source
+                    .as_ref()
+                    .and_then(|source| source.license.as_deref()),
+                id
+            ],
+        )?;
+        Ok(())
     }
 
     /// Fetch the FSRS state for a card (returns `None` if card has no state row).
@@ -179,9 +354,7 @@ impl Storage {
 
         match result {
             Ok((card_id, stability, difficulty, due, reps, lapses, state_str)) => {
-                let state = state_str
-                    .parse::<ReviewState>()
-                    .unwrap_or(ReviewState::New);
+                let state = state_str.parse::<ReviewState>().unwrap_or(ReviewState::New);
                 Ok(Some(CardState {
                     card_id,
                     stability,
@@ -196,6 +369,114 @@ impl Storage {
             Err(e) => Err(Error::Db(e)),
         }
     }
+}
+
+fn card_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Card> {
+    let meanings_json = row.get::<_, String>(4)?;
+    let pronunciations_json = row.get::<_, String>(5)?;
+    let tags_json = row.get::<_, String>(6)?;
+    let source_name = row.get::<_, Option<String>>(7)?;
+    Ok(Card {
+        id: row.get(0)?,
+        deck_id: row.get(1)?,
+        word: row.get(2)?,
+        language: row.get(3)?,
+        meanings: serde_json::from_str(&meanings_json).map_err(json_to_sql_error)?,
+        pronunciations: serde_json::from_str(&pronunciations_json).map_err(json_to_sql_error)?,
+        tags: serde_json::from_str(&tags_json).map_err(json_to_sql_error)?,
+        source: source_name.map(|name| Source {
+            name,
+            license: row.get::<_, Option<String>>(8).ok().flatten(),
+        }),
+        created_at: row.get(9)?,
+    })
+}
+
+fn json_to_sql_error(error: serde_json::Error) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
+}
+
+fn merge_import_card(existing: &Card, incoming: &ImportCard) -> ImportCard {
+    let mut meanings = existing.meanings.clone();
+    for meaning in &incoming.meanings {
+        if !meanings.iter().any(|item| {
+            item.part_of_speech == meaning.part_of_speech && item.definition == meaning.definition
+        }) {
+            meanings.push(meaning.clone());
+        }
+    }
+
+    let mut pronunciations = existing.pronunciations.clone();
+    for pronunciation in &incoming.pronunciations {
+        if !pronunciations
+            .iter()
+            .any(|item| item.notation == pronunciation.notation)
+        {
+            pronunciations.push(pronunciation.clone());
+        }
+    }
+
+    let mut tags = existing.tags.clone();
+    for tag in &incoming.tags {
+        if !tags.contains(tag) {
+            tags.push(tag.clone());
+        }
+    }
+
+    ImportCard {
+        word: existing.word.clone(),
+        language: if incoming.language.is_empty() {
+            existing.language.clone()
+        } else {
+            incoming.language.clone()
+        },
+        meanings,
+        pronunciations,
+        tags,
+        source: incoming.source.clone().or_else(|| existing.source.clone()),
+    }
+}
+
+fn ensure_card_metadata_columns(conn: &Connection) -> Result<()> {
+    let columns = table_columns(conn, "cards")?;
+    let missing = [
+        (
+            "language",
+            "ALTER TABLE cards ADD COLUMN language TEXT NOT NULL DEFAULT 'en'",
+        ),
+        (
+            "tags",
+            "ALTER TABLE cards ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'",
+        ),
+        (
+            "source_name",
+            "ALTER TABLE cards ADD COLUMN source_name TEXT",
+        ),
+        (
+            "source_license",
+            "ALTER TABLE cards ADD COLUMN source_license TEXT",
+        ),
+    ];
+
+    for (name, statement) in missing {
+        if !columns.iter().any(|column| column == name) {
+            conn.execute(statement, [])?;
+        }
+    }
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cards_deck_word ON cards(deck_id, word)",
+        [],
+    )?;
+    Ok(())
+}
+
+fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(columns)
 }
 
 #[cfg(test)]
@@ -216,7 +497,9 @@ mod tests {
     #[test]
     fn test_deck_insert_and_list() {
         let storage = open_temp();
-        let deck = storage.insert_deck("cet4", Some("CET-4 vocabulary")).unwrap();
+        let deck = storage
+            .insert_deck("cet4", Some("CET-4 vocabulary"))
+            .unwrap();
         assert_eq!(deck.name, "cet4");
         assert_eq!(deck.description.as_deref(), Some("CET-4 vocabulary"));
 
@@ -256,9 +539,7 @@ mod tests {
     fn test_card_state_created_on_insert() {
         let storage = open_temp();
         let deck = storage.insert_deck("test", None).unwrap();
-        let card = storage
-            .insert_card(deck.id, "hello", &[], &[])
-            .unwrap();
+        let card = storage.insert_card(deck.id, "hello", &[], &[]).unwrap();
         let state = storage.get_card_state(card.id).unwrap();
         assert!(state.is_some());
         assert!(matches!(state.unwrap().state, ReviewState::New));
@@ -277,5 +558,38 @@ mod tests {
         // Just ensure it doesn't error on this platform.
         let path = Storage::default_path().unwrap();
         assert!(path.to_str().unwrap().contains("vocabbar"));
+    }
+
+    #[test]
+    fn test_open_upgrades_m1_cards_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("old.db");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE decks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE cards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+                word TEXT NOT NULL,
+                meanings TEXT NOT NULL DEFAULT '[]',
+                pronunciations TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            ",
+        )
+        .unwrap();
+        drop(conn);
+
+        let storage = Storage::open(&path).unwrap();
+        let deck = storage.insert_deck("legacy", None).unwrap();
+        let card = storage.insert_card(deck.id, "hello", &[], &[]).unwrap();
+        assert_eq!(card.language, "en");
+        assert!(card.tags.is_empty());
     }
 }
