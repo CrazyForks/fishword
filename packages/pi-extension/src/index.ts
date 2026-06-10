@@ -68,7 +68,7 @@ export default function (pi: ExtensionAPI) {
     const meaning = formatMeaning(card);
 
     const plainLine1 = term + (phonetic ? "  " + phonetic : "");
-    const overlayWidth = Math.max(plainLine1.length, meaning.length) + 4;
+    const overlayWidth = Math.max(visibleWidth(plainLine1), visibleWidth(meaning)) + 4;
 
     void ctx.ui.custom(
       (_tui, theme) => ({
