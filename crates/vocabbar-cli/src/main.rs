@@ -3,10 +3,13 @@ use std::{path::PathBuf, str::FromStr};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use vocabbar_core::{
+    card::{Card, Rating},
     importer::{
         import_anki_tsv_file, import_csv_file, import_jsonl_file, import_qwerty_file,
         DuplicateStrategy, ImportDeck,
     },
+    scheduler::Scheduler,
+    selector::Selector,
     storage::Storage,
 };
 
@@ -35,6 +38,15 @@ enum Cmd {
     Import {
         #[command(subcommand)]
         sub: ImportCmd,
+    },
+    /// Show the current selected card.
+    Current,
+    /// Select the next card without writing review history.
+    Next,
+    /// Rate the current card: again, hard, good, easy.
+    Rate {
+        /// Review rating.
+        rating: String,
     },
 }
 
@@ -90,6 +102,9 @@ fn main() -> Result<()> {
             sub: CardCmd::List { deck },
         } => cmd_card_list(&deck),
         Cmd::Import { sub } => cmd_import(sub),
+        Cmd::Current => cmd_current(),
+        Cmd::Next => cmd_next(),
+        Cmd::Rate { rating } => cmd_rate(&rating),
     }
 }
 
@@ -147,6 +162,66 @@ fn cmd_card_list(deck: &str) -> Result<()> {
         println!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary);
     }
     Ok(())
+}
+
+fn cmd_current() -> Result<()> {
+    let storage = open_storage()?;
+    match Selector::select_current(&storage).context("failed to select current card")? {
+        Some(selected) => print_card(&selected.card),
+        None => println!("No cards found. Import a deck first."),
+    }
+    Ok(())
+}
+
+fn cmd_next() -> Result<()> {
+    let storage = open_storage()?;
+    match Selector::select_next(&storage).context("failed to select next card")? {
+        Some(selected) => print_card(&selected.card),
+        None => println!("No cards found. Import a deck first."),
+    }
+    Ok(())
+}
+
+fn cmd_rate(value: &str) -> Result<()> {
+    let rating = value
+        .parse::<Rating>()
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("invalid rating '{value}', expected again/hard/good/easy"))?;
+    let storage = open_storage()?;
+    let card_id = storage
+        .get_current_card_id()
+        .context("failed to read current card")?
+        .context("No current card. Run `vocabbar next` first.")?;
+    let review = Scheduler::review(&storage, card_id, rating).context("failed to rate card")?;
+    let card = storage
+        .get_card_by_id(card_id)
+        .context("failed to read reviewed card")?
+        .context("Reviewed card disappeared")?;
+    println!(
+        "Rated {} as {}. due={} scheduled_days={}",
+        card.word, review.rating, review.due, review.scheduled_days
+    );
+    Ok(())
+}
+
+fn print_card(card: &Card) {
+    let meanings = card
+        .meanings
+        .iter()
+        .map(|meaning| meaning.definition.as_str())
+        .collect::<Vec<_>>()
+        .join("; ");
+    let pronunciations = card
+        .pronunciations
+        .iter()
+        .map(|pronunciation| pronunciation.notation.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if pronunciations.is_empty() {
+        println!("{} - {}", card.word, meanings);
+    } else {
+        println!("{} {} - {}", card.word, pronunciations, meanings);
+    }
 }
 
 fn cmd_import(command: ImportCmd) -> Result<()> {

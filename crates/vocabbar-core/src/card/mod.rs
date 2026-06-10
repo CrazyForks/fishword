@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Meaning {
@@ -30,6 +31,13 @@ pub struct Card {
     pub tags: Vec<String>,
     pub source: Option<Source>,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardWithState {
+    pub card: Card,
+    pub state: CardState,
+    pub last_reviewed_at: Option<String>,
 }
 
 /// FSRS state fields — populated in M3.
@@ -84,6 +92,37 @@ pub enum Rating {
     Hard = 2,
     Good = 3,
     Easy = 4,
+}
+
+impl Rating {
+    pub fn as_i64(self) -> i64 {
+        self as i64
+    }
+}
+
+impl std::fmt::Display for Rating {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Rating::Again => write!(f, "again"),
+            Rating::Hard => write!(f, "hard"),
+            Rating::Good => write!(f, "good"),
+            Rating::Easy => write!(f, "easy"),
+        }
+    }
+}
+
+impl FromStr for Rating {
+    type Err = String;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "again" => Ok(Self::Again),
+            "hard" => Ok(Self::Hard),
+            "good" => Ok(Self::Good),
+            "easy" => Ok(Self::Easy),
+            other => Err(format!("unknown rating: {other}")),
+        }
+    }
 }
 
 impl TryFrom<i64> for Rating {

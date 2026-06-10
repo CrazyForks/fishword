@@ -2,10 +2,11 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 use crate::{
-    card::{Card, CardState, Meaning, Pronunciation, ReviewState, Source},
+    card::{Card, CardState, CardWithState, Meaning, Pronunciation, ReviewState, Source},
     deck::Deck,
     error::{Error, Result},
     importer::{DuplicateStrategy, ImportCard, ImportSummary},
+    scheduler::ScheduledReview,
 };
 
 const MIGRATION: &str = include_str!("../../../../migrations/0001_init.sql");
@@ -270,7 +271,7 @@ impl Storage {
         Ok(summary)
     }
 
-    fn get_card_by_id(&self, id: i64) -> Result<Option<Card>> {
+    pub fn get_card_by_id(&self, id: i64) -> Result<Option<Card>> {
         let result = self.conn.query_row(
             "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
                     source_name, source_license, created_at
@@ -283,6 +284,148 @@ impl Storage {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(Error::Db(e)),
         }
+    }
+
+    pub fn get_current_card_id(&self) -> Result<Option<i64>> {
+        self.get_setting("current_card_id")?
+            .map(|value| {
+                value.parse::<i64>().map_err(|error| {
+                    Error::InvalidInput(format!("invalid current_card_id '{value}': {error}"))
+                })
+            })
+            .transpose()
+    }
+
+    pub fn set_current_card_id(&self, card_id: Option<i64>) -> Result<()> {
+        match card_id {
+            Some(card_id) => self.set_setting("current_card_id", &card_id.to_string()),
+            None => self.delete_setting("current_card_id"),
+        }
+    }
+
+    pub fn get_current_card(&self) -> Result<Option<Card>> {
+        self.get_current_card_id()?
+            .map(|card_id| self.get_card_by_id(card_id))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    pub fn list_cards_with_state(&self) -> Result<Vec<CardWithState>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT c.id, c.deck_id, c.word, c.language, c.meanings, c.pronunciations,
+                    c.tags, c.source_name, c.source_license, c.created_at,
+                    s.card_id, s.stability, s.difficulty, s.due, s.reps, s.lapses, s.state,
+                    (
+                        SELECT MAX(reviewed_at)
+                        FROM review_log r
+                        WHERE r.card_id = c.id
+                    ) AS last_reviewed_at
+             FROM cards c
+             JOIN card_state s ON s.card_id = c.id
+             ORDER BY c.id",
+        )?;
+        let rows = stmt
+            .query_map([], |row| {
+                let card = card_from_row(row)?;
+                let state_str = row.get::<_, String>(16)?;
+                let state = state_str.parse::<ReviewState>().unwrap_or(ReviewState::New);
+                Ok(CardWithState {
+                    card,
+                    state: CardState {
+                        card_id: row.get(10)?,
+                        stability: row.get(11)?,
+                        difficulty: row.get(12)?,
+                        due: row.get(13)?,
+                        reps: row.get(14)?,
+                        lapses: row.get(15)?,
+                        state,
+                    },
+                    last_reviewed_at: row.get(17)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    pub fn last_reviewed_at(&self, card_id: i64) -> Result<Option<String>> {
+        let result = self.conn.query_row(
+            "SELECT MAX(reviewed_at) FROM review_log WHERE card_id = ?1",
+            params![card_id],
+            |row| row.get::<_, Option<String>>(0),
+        )?;
+        Ok(result)
+    }
+
+    pub fn review_log_count(&self, card_id: i64) -> Result<i64> {
+        let count = self.conn.query_row(
+            "SELECT COUNT(*) FROM review_log WHERE card_id = ?1",
+            params![card_id],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    pub fn record_review(&self, review: &ScheduledReview) -> Result<()> {
+        self.conn.execute(
+            "UPDATE card_state
+             SET stability = ?1,
+                 difficulty = ?2,
+                 due = ?3,
+                 reps = reps + 1,
+                 lapses = lapses + ?4,
+                 state = ?5
+             WHERE card_id = ?6",
+            params![
+                review.stability,
+                review.difficulty,
+                review.due,
+                i64::from(matches!(review.rating, crate::card::Rating::Again)),
+                review.state.to_string(),
+                review.card_id
+            ],
+        )?;
+        self.conn.execute(
+            "INSERT INTO review_log
+             (card_id, rating, reviewed_at, elapsed_days, scheduled_days)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                review.card_id,
+                review.rating.as_i64(),
+                review.reviewed_at,
+                review.elapsed_days,
+                review.scheduled_days
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let result = self.conn.query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        );
+        match result {
+            Ok(value) => Ok(Some(value)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO settings (key, value)
+             VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+
+    fn delete_setting(&self, key: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM settings WHERE key = ?1", params![key])?;
+        Ok(())
     }
 
     fn find_first_card_by_word(&self, deck_id: i64, word: &str) -> Result<Option<Card>> {
