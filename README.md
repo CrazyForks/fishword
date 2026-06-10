@@ -1,6 +1,6 @@
-# Vocabber
+# Fishword
 
-Vocabber 是一个本地词汇学习项目。当前核心是 Rust CLI，负责词库导入、SQLite 存储、FSRS 复习调度和稳定 JSON 协议。
+Fishword 是一个本地词汇学习项目。当前核心是 Rust CLI，负责词库导入、SQLite 存储、FSRS 复习调度和稳定 JSON 协议。
 
 ## 文档
 
@@ -29,7 +29,7 @@ pnpm dev:cli
 这会生成：
 
 ```text
-target/debug/vocabbar
+target/debug/fishword
 ```
 
 然后跑 CLI 冒烟测试：
@@ -41,28 +41,30 @@ pnpm smoke:cli
 `smoke:cli` 会使用临时 `HOME`，不会污染你的真实数据库。当前覆盖：
 
 ```text
-vocabbar init
-vocabbar import qwerty
-vocabbar current --json
-vocabbar next --json
-vocabbar rate good --json
+fishword init
+fishword import qwerty
+fishword deck current
+fishword deck use <deck>
+fishword current --json
+fishword next --json
+fishword rate good --json
 ```
 
 也可以直接用 Cargo 手动调试：
 
 ```bash
-cargo run -p vocabbar-cli -- init
-cargo run -p vocabbar-cli -- current --json
-cargo run -p vocabbar-cli -- next --json
-cargo run -p vocabbar-cli -- rate good --json
+cargo run -p fishword-cli -- init
+cargo run -p fishword-cli -- current --json
+cargo run -p fishword-cli -- next --json
+cargo run -p fishword-cli -- rate good --json
 ```
 
 手动测试时建议使用隔离 `HOME`：
 
 ```bash
-HOME=/private/tmp/vocabbar-dev cargo run -p vocabbar-cli -- init
-HOME=/private/tmp/vocabbar-dev cargo run -p vocabbar-cli -- import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-HOME=/private/tmp/vocabbar-dev cargo run -p vocabbar-cli -- current --json
+HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- init
+HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
+HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- current --json
 ```
 
 ## 测试与检查
@@ -99,7 +101,7 @@ node scripts/smoke-cli.mjs
 
 ## 本机部署测试
 
-如果想像普通用户一样在任意目录执行 `vocabbar`，可以把本地 `@vocabber/cli` wrapper link 到全局。
+如果想像普通用户一样在任意目录执行 `fishword`，可以把本地 `@fishword/cli` wrapper link 到全局。
 
 先构建 CLI：
 
@@ -118,24 +120,25 @@ cd ../..
 验证：
 
 ```bash
-vocabbar --version
-vocabbar --help
+fishword --version
+fishword --help
 ```
 
 用隔离数据库做完整手动测试：
 
 ```bash
-HOME=/private/tmp/vocabbar-dev vocabbar init
-HOME=/private/tmp/vocabbar-dev vocabbar import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-HOME=/private/tmp/vocabbar-dev vocabbar current --json
-HOME=/private/tmp/vocabbar-dev vocabbar next --json
-HOME=/private/tmp/vocabbar-dev vocabbar rate good --json
+HOME=/private/tmp/fishword-dev fishword init
+HOME=/private/tmp/fishword-dev fishword import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
+HOME=/private/tmp/fishword-dev fishword deck use cet4
+HOME=/private/tmp/fishword-dev fishword current --json
+HOME=/private/tmp/fishword-dev fishword next --json
+HOME=/private/tmp/fishword-dev fishword rate good --json
 ```
 
-这个全局 `vocabbar` 实际是 JS wrapper。开发模式下它会解析到当前仓库的：
+这个全局 `fishword` 实际是 JS wrapper。开发模式下它会解析到当前仓库的：
 
 ```text
-target/debug/vocabbar
+target/debug/fishword
 ```
 
 所以每次修改 Rust 后，重新执行：
@@ -158,19 +161,26 @@ pnpm dev:cli
 - 上游许可证：GPL-3.0
 - 内置许可证副本：`assets/dicts/qwerty-learner/upstream/LICENSE`
 
-这些词库按上游 GPL-3.0 许可证再分发。如果分发包含这些词库的 Vocabber，请遵守 GPL-3.0，并保留 attribution 和 license notice。
+这些词库按上游 GPL-3.0 许可证再分发。如果分发包含这些词库的 Fishword，请遵守 GPL-3.0，并保留 attribution 和 license notice。
 
 常用导入命令：
 
 ```bash
-vocabbar import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-vocabbar import qwerty assets/dicts/qwerty-learner/dicts/CET6_T.json --deck cet6 --name "CET-6"
-vocabbar import qwerty assets/dicts/qwerty-learner/dicts/TOEFL_3_T.json --deck toefl --name "TOEFL"
+fishword import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
+fishword import qwerty assets/dicts/qwerty-learner/dicts/CET6_T.json --deck cet6 --name "CET-6"
+fishword import qwerty assets/dicts/qwerty-learner/dicts/TOEFL_3_T.json --deck toefl --name "TOEFL"
 ```
 
 查看导入结果：
 
 ```bash
-vocabbar deck list
-vocabbar card list --deck cet4
+fishword deck list
+fishword card list --deck cet4
+```
+
+选择当前学习词库：
+
+```bash
+fishword deck use cet4
+fishword deck current
 ```

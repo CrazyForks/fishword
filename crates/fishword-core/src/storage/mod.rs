@@ -37,12 +37,12 @@ impl Storage {
 
     /// Platform-appropriate default database path.
     ///
-    /// - macOS:   `~/Library/Application Support/vocabbar/vocabbar.db`
-    /// - Linux:   `~/.local/share/vocabbar/vocabbar.db`
-    /// - Windows: `%APPDATA%\vocabbar\vocabbar.db`
+    /// - macOS:   `~/Library/Application Support/fishword/fishword.db`
+    /// - Linux:   `~/.local/share/fishword/fishword.db`
+    /// - Windows: `%APPDATA%\fishword\fishword.db`
     pub fn default_path() -> Result<PathBuf> {
         let base = dirs::data_dir().ok_or(Error::NoDataDir)?;
-        Ok(base.join("vocabbar").join("vocabbar.db"))
+        Ok(base.join("fishword").join("fishword.db"))
     }
 
     // ── Deck ──────────────────────────────────────────────────────────────
@@ -62,6 +62,31 @@ impl Storage {
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(decks)
+    }
+
+    pub fn get_active_deck_id(&self) -> Result<Option<i64>> {
+        self.get_setting("active_deck_id")?
+            .map(|value| {
+                value.parse::<i64>().map_err(|error| {
+                    Error::InvalidInput(format!("invalid active_deck_id '{value}': {error}"))
+                })
+            })
+            .transpose()
+    }
+
+    pub fn get_active_deck(&self) -> Result<Option<Deck>> {
+        self.get_active_deck_id()?
+            .map(|deck_id| self.get_deck_by_id(deck_id))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    pub fn set_active_deck_id(&self, deck_id: Option<i64>) -> Result<()> {
+        match deck_id {
+            Some(deck_id) => self.set_setting("active_deck_id", &deck_id.to_string())?,
+            None => self.delete_setting("active_deck_id")?,
+        }
+        self.set_current_card_id(None)
     }
 
     pub fn insert_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
@@ -337,7 +362,21 @@ impl Storage {
             .map(Option::flatten)
     }
 
+    pub fn get_current_card_in_deck(&self, deck_id: i64) -> Result<Option<Card>> {
+        Ok(self
+            .get_current_card()?
+            .filter(|card| card.deck_id == deck_id))
+    }
+
     pub fn list_cards_with_state(&self) -> Result<Vec<CardWithState>> {
+        self.list_cards_with_state_filtered(None)
+    }
+
+    pub fn list_cards_with_state_by_deck(&self, deck_id: i64) -> Result<Vec<CardWithState>> {
+        self.list_cards_with_state_filtered(Some(deck_id))
+    }
+
+    fn list_cards_with_state_filtered(&self, deck_id: Option<i64>) -> Result<Vec<CardWithState>> {
         let mut stmt = self.conn.prepare(
             "SELECT c.id, c.deck_id, c.word, c.language, c.meanings, c.pronunciations,
                     c.tags, c.source_name, c.source_license, c.created_at,
@@ -349,10 +388,11 @@ impl Storage {
                     ) AS last_reviewed_at
              FROM cards c
              JOIN card_state s ON s.card_id = c.id
+             WHERE (?1 IS NULL OR c.deck_id = ?1)
              ORDER BY c.id",
         )?;
         let rows = stmt
-            .query_map([], |row| {
+            .query_map(params![deck_id], |row| {
                 let card = card_from_row(row)?;
                 let state_str = row.get::<_, String>(16)?;
                 let state = state_str.parse::<ReviewState>().unwrap_or(ReviewState::New);
@@ -393,25 +433,48 @@ impl Storage {
     }
 
     pub fn progress_counts(&self, daily_new_limit: i64) -> Result<ProgressCounts> {
+        self.progress_counts_filtered(None, daily_new_limit)
+    }
+
+    pub fn progress_counts_by_deck(
+        &self,
+        deck_id: i64,
+        daily_new_limit: i64,
+    ) -> Result<ProgressCounts> {
+        self.progress_counts_filtered(Some(deck_id), daily_new_limit)
+    }
+
+    fn progress_counts_filtered(
+        &self,
+        deck_id: Option<i64>,
+        daily_new_limit: i64,
+    ) -> Result<ProgressCounts> {
         let due_count = self.conn.query_row(
             "SELECT COUNT(*)
-             FROM card_state
-             WHERE reps > 0 AND due <= datetime('now')",
-            [],
+             FROM card_state s
+             JOIN cards c ON c.id = s.card_id
+             WHERE (?1 IS NULL OR c.deck_id = ?1)
+               AND s.reps > 0
+               AND s.due <= datetime('now')",
+            params![deck_id],
             |row| row.get(0),
         )?;
         let new_count = self.conn.query_row(
             "SELECT COUNT(*)
-             FROM card_state
-             WHERE reps = 0",
-            [],
+             FROM card_state s
+             JOIN cards c ON c.id = s.card_id
+             WHERE (?1 IS NULL OR c.deck_id = ?1)
+               AND s.reps = 0",
+            params![deck_id],
             |row| row.get::<_, i64>(0),
         )?;
         let reviewed_today = self.conn.query_row(
             "SELECT COUNT(*)
-             FROM review_log
-             WHERE date(reviewed_at) = date('now')",
-            [],
+             FROM review_log r
+             JOIN cards c ON c.id = r.card_id
+             WHERE (?1 IS NULL OR c.deck_id = ?1)
+               AND date(r.reviewed_at) = date('now')",
+            params![deck_id],
             |row| row.get(0),
         )?;
         Ok(ProgressCounts {
@@ -753,10 +816,43 @@ mod tests {
     }
 
     #[test]
+    fn test_active_deck_setting_clears_current_card() {
+        let storage = open_temp();
+        let deck = storage.insert_deck("cet4", None).unwrap();
+        let card = storage.insert_card(deck.id, "cancel", &[], &[]).unwrap();
+
+        storage.set_current_card_id(Some(card.id)).unwrap();
+        storage.set_active_deck_id(Some(deck.id)).unwrap();
+
+        assert_eq!(storage.get_active_deck_id().unwrap(), Some(deck.id));
+        assert_eq!(storage.get_active_deck().unwrap().unwrap().name, "cet4");
+        assert_eq!(storage.get_current_card_id().unwrap(), None);
+    }
+
+    #[test]
+    fn test_progress_counts_are_scoped_by_deck() {
+        let storage = open_temp();
+        let first_deck = storage.insert_deck("first", None).unwrap();
+        let second_deck = storage.insert_deck("second", None).unwrap();
+        storage
+            .insert_card(first_deck.id, "same", &[], &[])
+            .unwrap();
+        storage
+            .insert_card(second_deck.id, "same", &[], &[])
+            .unwrap();
+
+        let first_progress = storage.progress_counts_by_deck(first_deck.id, 20).unwrap();
+        let second_progress = storage.progress_counts_by_deck(second_deck.id, 20).unwrap();
+
+        assert_eq!(first_progress.new_remaining, 1);
+        assert_eq!(second_progress.new_remaining, 1);
+    }
+
+    #[test]
     fn test_default_path_is_some() {
         // Just ensure it doesn't error on this platform.
         let path = Storage::default_path().unwrap();
-        assert!(path.to_str().unwrap().contains("vocabbar"));
+        assert!(path.to_str().unwrap().contains("fishword"));
     }
 
     #[test]

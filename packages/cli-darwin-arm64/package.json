@@ -1,7 +1,7 @@
 {
-  "name": "@vocabber/cli-darwin-arm64",
+  "name": "@fishword/cli-darwin-arm64",
   "version": "0.1.0",
-  "description": "Vocabber CLI binary for macOS arm64.",
+  "description": "Fishword CLI binary for macOS arm64.",
   "os": ["darwin"],
   "cpu": ["arm64"],
   "license": "MIT",

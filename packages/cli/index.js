@@ -8,15 +8,15 @@ const packageDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageDir, "../..");
 
 const platformPackages = {
-  "darwin-arm64": "@vocabber/cli-darwin-arm64",
-  "darwin-x64": "@vocabber/cli-darwin-x64",
-  "linux-arm64": "@vocabber/cli-linux-arm64",
-  "linux-x64": "@vocabber/cli-linux-x64",
-  "win32-x64": "@vocabber/cli-win32-x64"
+  "darwin-arm64": "@fishword/cli-darwin-arm64",
+  "darwin-x64": "@fishword/cli-darwin-x64",
+  "linux-arm64": "@fishword/cli-linux-arm64",
+  "linux-x64": "@fishword/cli-linux-x64",
+  "win32-x64": "@fishword/cli-win32-x64"
 };
 
 function executableName() {
-  return process.platform === "win32" ? "vocabbar.exe" : "vocabbar";
+  return process.platform === "win32" ? "fishword.exe" : "fishword";
 }
 
 function devBinaryPath() {
@@ -41,9 +41,9 @@ function platformBinaryPath() {
   }
 }
 
-export function resolveVocabbarPath() {
-  if (process.env.VOCABBAR_CLI_PATH) {
-    return resolve(process.env.VOCABBAR_CLI_PATH);
+export function resolveFishwordPath() {
+  if (process.env.FISHWORD_CLI_PATH) {
+    return resolve(process.env.FISHWORD_CLI_PATH);
   }
 
   const devPath = devBinaryPath();
@@ -58,15 +58,15 @@ export function resolveVocabbarPath() {
 
   const platformName = `${process.platform}-${process.arch}`;
   const packageName = platformPackageName();
-  const expected = packageName ?? "no supported @vocabber/cli-* package";
+  const expected = packageName ?? "no supported @fishword/cli-* package";
   throw new Error(
     [
-      `Cannot find vocabbar CLI for ${platformName}.`,
+      `Cannot find fishword CLI for ${platformName}.`,
       `Expected ${expected}.`,
       "For local development, run `pnpm dev:cli` from the repository root.",
-      "You can also set VOCABBAR_CLI_PATH to a custom vocabbar binary."
+      "You can also set FISHWORD_CLI_PATH to a custom fishword binary."
     ].join(" ")
   );
 }
 
-export const vocabbarPath = resolveVocabbarPath();
+export const fishwordPath = resolveFishwordPath();

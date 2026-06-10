@@ -1,7 +1,7 @@
 {
-  "name": "@vocabber/cli-darwin-x64",
+  "name": "@fishword/cli-darwin-x64",
   "version": "0.1.0",
-  "description": "Vocabber CLI binary for macOS x64.",
+  "description": "Fishword CLI binary for macOS x64.",
   "os": ["darwin"],
   "cpu": ["x64"],
   "license": "MIT",

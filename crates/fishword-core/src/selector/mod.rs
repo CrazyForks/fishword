@@ -45,10 +45,33 @@ impl Selector {
         Self::select_next(storage)
     }
 
+    pub fn select_current_in_deck(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
+        if let Some(card) = storage.get_current_card_in_deck(deck_id)? {
+            return Ok(Some(SelectedCard {
+                card,
+                reason: SelectionReason::Mature,
+            }));
+        }
+        Self::select_next_in_deck(storage, deck_id)
+    }
+
     pub fn select_next(storage: &Storage) -> Result<Option<SelectedCard>> {
         let selector = Self::default();
         let current_card_id = storage.get_current_card_id()?;
         let candidates = storage.list_cards_with_state()?;
+        let selected = selector.select_from_candidates(&candidates, current_card_id)?;
+        if let Some(selected) = &selected {
+            storage.set_current_card_id(Some(selected.card.id))?;
+        }
+        Ok(selected)
+    }
+
+    pub fn select_next_in_deck(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
+        let selector = Self::default();
+        let current_card_id = storage
+            .get_current_card_in_deck(deck_id)?
+            .map(|card| card.id);
+        let candidates = storage.list_cards_with_state_by_deck(deck_id)?;
         let selected = selector.select_from_candidates(&candidates, current_card_id)?;
         if let Some(selected) = &selected {
             storage.set_current_card_id(Some(selected.card.id))?;
@@ -155,6 +178,11 @@ mod tests {
         storage.insert_card(deck.id, word, &[], &[]).unwrap().id
     }
 
+    fn insert_card_in_deck(storage: &Storage, deck_name: &str, word: &str) -> i64 {
+        let deck = storage.ensure_deck(deck_name, None).unwrap();
+        storage.insert_card(deck.id, word, &[], &[]).unwrap().id
+    }
+
     #[test]
     fn next_selects_new_card_without_review_log() {
         let storage = open_temp();
@@ -203,5 +231,35 @@ mod tests {
         let selected = Selector::select_next(&storage).unwrap().unwrap();
         assert_eq!(selected.card.id, card_id);
         assert_eq!(selected.reason, SelectionReason::Mature);
+    }
+
+    #[test]
+    fn next_in_deck_only_selects_candidates_from_that_deck() {
+        let storage = open_temp();
+        let first_id = insert_card_in_deck(&storage, "first", "same");
+        let second_id = insert_card_in_deck(&storage, "second", "same");
+        let second_deck = storage.get_deck_by_name("second").unwrap().unwrap();
+
+        let selected = Selector::select_next_in_deck(&storage, second_deck.id)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(selected.card.id, second_id);
+        assert_ne!(selected.card.id, first_id);
+    }
+
+    #[test]
+    fn current_in_deck_ignores_current_card_from_other_deck() {
+        let storage = open_temp();
+        let first_id = insert_card_in_deck(&storage, "first", "first");
+        let second_id = insert_card_in_deck(&storage, "second", "second");
+        let second_deck = storage.get_deck_by_name("second").unwrap().unwrap();
+
+        storage.set_current_card_id(Some(first_id)).unwrap();
+        let selected = Selector::select_current_in_deck(&storage, second_deck.id)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(selected.card.id, second_id);
     }
 }

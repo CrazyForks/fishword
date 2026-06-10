@@ -1,5 +1,5 @@
 {
-  "schema": "vocabbar.protocol.error.v1",
+  "schema": "fishword.protocol.error.v1",
   "error": {
     "code": "no_cards",
     "message": "No cards found. Import a deck first."

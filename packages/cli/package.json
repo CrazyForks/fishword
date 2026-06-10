@@ -1,11 +1,11 @@
 {
-  "name": "@vocabber/cli",
+  "name": "@fishword/cli",
   "version": "0.1.0",
-  "description": "JavaScript wrapper for the Vocabber Rust CLI.",
+  "description": "JavaScript wrapper for the Fishword Rust CLI.",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "vocabbar": "./bin/vocabbar.js"
+    "fishword": "./bin/fishword.js"
   },
   "exports": {
     ".": "./index.js"
@@ -15,11 +15,11 @@
     "index.js"
   ],
   "optionalDependencies": {
-    "@vocabber/cli-darwin-arm64": "workspace:*",
-    "@vocabber/cli-darwin-x64": "workspace:*",
-    "@vocabber/cli-linux-arm64": "workspace:*",
-    "@vocabber/cli-linux-x64": "workspace:*",
-    "@vocabber/cli-win32-x64": "workspace:*"
+    "@fishword/cli-darwin-arm64": "workspace:*",
+    "@fishword/cli-darwin-x64": "workspace:*",
+    "@fishword/cli-linux-arm64": "workspace:*",
+    "@fishword/cli-linux-x64": "workspace:*",
+    "@fishword/cli-win32-x64": "workspace:*"
   },
   "engines": {
     "node": ">=18"

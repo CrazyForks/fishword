@@ -1,7 +1,7 @@
 {
-  "name": "@vocabber/cli-linux-x64",
+  "name": "@fishword/cli-linux-x64",
   "version": "0.1.0",
-  "description": "Vocabber CLI binary for Linux x64.",
+  "description": "Fishword CLI binary for Linux x64.",
   "os": ["linux"],
   "cpu": ["x64"],
   "license": "MIT",

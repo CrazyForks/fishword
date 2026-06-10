@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vocabbar.local/schemas/deck.v1.schema.json",
-  "title": "vocabbar.deck.v1 card",
+  "$id": "https://fishword.local/schemas/deck.v1.schema.json",
+  "title": "fishword.deck.v1 card",
   "type": "object",
   "additionalProperties": false,
   "required": ["term", "meanings"],

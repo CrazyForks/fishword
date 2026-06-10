@@ -1,5 +1,5 @@
 {
-  "schema": "vocabbar.protocol.current.v1",
+  "schema": "fishword.protocol.current.v1",
   "card": {
     "id": "cet4:cancel",
     "db_id": 1,

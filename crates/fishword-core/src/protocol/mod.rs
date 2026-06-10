@@ -8,10 +8,10 @@ use crate::{
     storage::ProgressCounts,
 };
 
-pub const CURRENT_SCHEMA: &str = "vocabbar.protocol.current.v1";
-pub const NEXT_SCHEMA: &str = "vocabbar.protocol.next.v1";
-pub const RATE_SCHEMA: &str = "vocabbar.protocol.rate.v1";
-pub const ERROR_SCHEMA: &str = "vocabbar.protocol.error.v1";
+pub const CURRENT_SCHEMA: &str = "fishword.protocol.current.v1";
+pub const NEXT_SCHEMA: &str = "fishword.protocol.next.v1";
+pub const RATE_SCHEMA: &str = "fishword.protocol.rate.v1";
+pub const ERROR_SCHEMA: &str = "fishword.protocol.error.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {

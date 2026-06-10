@@ -291,6 +291,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
+name = "fishword-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "fishword-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fishword-core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dirs",
+ "fsrs",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -942,31 +967,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "vocabbar-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "vocabbar-core",
-]
-
-[[package]]
-name = "vocabbar-core"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "dirs",
- "fsrs",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
-]
 
 [[package]]
 name = "wasi"

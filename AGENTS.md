@@ -1,8 +1,8 @@
-# Vocabber Project Guide
+# Fishword Project Guide
 
 ## Project Overview
 
-Vocabber is a local vocabulary learning project built around a Rust CLI. The CLI
+Fishword is a local vocabulary learning project built around a Rust CLI. The CLI
 is intended to become the stable integration layer for multiple frontends,
 including a Pi extension, terminal UI, and future agent/editor integrations.
 
@@ -23,19 +23,19 @@ protocol commands instead of parsing human-readable text.
 Core commands:
 
 ```bash
-vocabbar init
-vocabbar import qwerty <file> --deck <deck> --name <name>
-vocabbar current --json
-vocabbar next --json
-vocabbar rate good --json
+fishword init
+fishword import qwerty <file> --deck <deck> --name <name>
+fishword current --json
+fishword next --json
+fishword rate good --json
 ```
 
 Human-readable output remains available for manual testing:
 
 ```bash
-vocabbar current --format plain
-vocabbar current --format compact
-vocabbar current --format status
+fishword current --format plain
+fishword current --format compact
+fishword current --format status
 ```
 
 ## Broad Directory Layout
@@ -43,7 +43,7 @@ vocabbar current --format status
 ```text
 .
 ├── adapters/
-│   └── pi-vocabbar/
+│   └── pi-fishword/
 │       └── examples/
 │           └── probe.ts
 ├── assets/
@@ -53,9 +53,9 @@ vocabbar current --format status
 │           ├── dicts/
 │           └── upstream/
 ├── crates/
-│   ├── vocabbar-cli/
+│   ├── fishword-cli/
 │   │   └── src/main.rs
-│   └── vocabbar-core/
+│   └── fishword-core/
 │       ├── fixtures/
 │       └── src/
 │           ├── card/
@@ -78,7 +78,7 @@ vocabbar current --format status
 
 ## Core Crates
 
-### `crates/vocabbar-core`
+### `crates/fishword-core`
 
 Contains the reusable domain logic:
 
@@ -90,10 +90,10 @@ Contains the reusable domain logic:
 - `selector`: current/next card selection policy
 - `protocol`: stable JSON DTOs for frontend consumers
 
-### `crates/vocabbar-cli`
+### `crates/fishword-cli`
 
 Contains the command-line interface. It should stay thin and delegate domain
-work to `vocabbar-core`.
+work to `fishword-core`.
 
 ## Default Dictionaries
 
@@ -116,13 +116,13 @@ assets/dicts/qwerty-learner/upstream/LICENSE
 The default database path is platform-specific. On macOS it is:
 
 ```text
-~/Library/Application Support/vocabbar/vocabbar.db
+~/Library/Application Support/fishword/fishword.db
 ```
 
 For isolated manual tests, override `HOME`:
 
 ```bash
-HOME=/private/tmp/vocabbar-test ./target/debug/vocabbar init
+HOME=/private/tmp/fishword-test ./target/debug/fishword init
 ```
 
 ## Development Notes

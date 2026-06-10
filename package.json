@@ -1,11 +1,11 @@
 {
-  "name": "vocabber-workspace",
+  "name": "fishword-workspace",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build:rust": "cargo build --workspace",
-    "dev:cli": "cargo build -p vocabbar-cli",
+    "dev:cli": "cargo build -p fishword-cli",
     "test:rust": "cargo test",
     "lint:rust": "cargo clippy --all-targets --all-features -- -D warnings",
     "format:check": "cargo fmt --all -- --check",

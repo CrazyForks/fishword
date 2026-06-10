@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vocabbar.local/schemas/protocol.v1.schema.json",
-  "title": "Vocabbar CLI protocol v1",
+  "$id": "https://fishword.local/schemas/protocol.v1.schema.json",
+  "title": "Fishword CLI protocol v1",
   "oneOf": [
     { "$ref": "#/$defs/card_response" },
     { "$ref": "#/$defs/rate_response" },
@@ -15,8 +15,8 @@
       "properties": {
         "schema": {
           "enum": [
-            "vocabbar.protocol.current.v1",
-            "vocabbar.protocol.next.v1"
+            "fishword.protocol.current.v1",
+            "fishword.protocol.next.v1"
           ]
         },
         "card": { "$ref": "#/$defs/card" },
@@ -30,7 +30,7 @@
       "additionalProperties": false,
       "required": ["schema", "card", "display", "progress", "review"],
       "properties": {
-        "schema": { "const": "vocabbar.protocol.rate.v1" },
+        "schema": { "const": "fishword.protocol.rate.v1" },
         "card": { "$ref": "#/$defs/card" },
         "display": { "$ref": "#/$defs/display" },
         "progress": { "$ref": "#/$defs/progress" },
@@ -42,7 +42,7 @@
       "additionalProperties": false,
       "required": ["schema", "error"],
       "properties": {
-        "schema": { "const": "vocabbar.protocol.error.v1" },
+        "schema": { "const": "fishword.protocol.error.v1" },
         "error": {
           "type": "object",
           "additionalProperties": false,

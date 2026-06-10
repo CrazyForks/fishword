@@ -2,7 +2,7 @@
  * M0 可行性探针 — pi extension 最小验证
  *
  * 安装方式（任选其一）：
- *   全局: cp probe.ts ~/.pi/agent/extensions/vocabbar-probe.ts && pi /reload
+ *   全局: cp probe.ts ~/.pi/agent/extensions/fishword-probe.ts && pi /reload
  *   临时: pi -e ./probe.ts
  *
  * 验收检查项：
@@ -21,16 +21,16 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("vocab", {
     description: "Show current vocab card in status bar",
     handler: async (_args, ctx) => {
-      ctx.ui.setStatus("vocabbar", MOCK_CARD);
-      ctx.ui.notify("vocabbar: status bar updated", "info");
+      ctx.ui.setStatus("fishword", MOCK_CARD);
+      ctx.ui.notify("fishword: status bar updated", "info");
     },
   });
 
   // ── 验收2：快捷键触发 notify ────────────────────────────────────────────
   pi.registerShortcut("ctrl+alt+v", {
-    description: "Show vocab card (vocabbar)",
+    description: "Show vocab card (fishword)",
     handler: async (ctx) => {
-      ctx.ui.notify("vocabbar shortcut works ✓", "info");
+      ctx.ui.notify("fishword shortcut works ✓", "info");
     },
   });
 
@@ -64,6 +64,6 @@ export default function (pi: ExtensionAPI) {
 
   // ── 启动确认 ────────────────────────────────────────────────────────────
   pi.on("session_start", async (_event, ctx) => {
-    ctx.ui.setStatus("vocabbar", MOCK_CARD);
+    ctx.ui.setStatus("fishword", MOCK_CARD);
   });
 }
