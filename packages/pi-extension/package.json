@@ -9,6 +9,9 @@
   "dependencies": {
     "@fishword/cli": "workspace:*"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
   "pi": {
     "extensions": ["./src/index.ts"]
   },
