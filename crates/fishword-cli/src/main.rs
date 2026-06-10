@@ -9,7 +9,7 @@ use fishword_core::{
         import_anki_tsv_file, import_csv_file, import_jsonl_file, import_qwerty_file,
         DuplicateStrategy, ImportDeck,
     },
-    protocol::{render_card, CardResponse, ErrorResponse, RateResponse, TextFormat},
+    protocol::{render_card, CardResponse, DeckListResponse, DeckUseResponse, ErrorResponse, RateResponse, TextFormat},
     scheduler::Scheduler,
     selector::{SelectedCard, Selector},
     storage::Storage,
@@ -52,11 +52,18 @@ enum Cmd {
 #[derive(Subcommand)]
 enum DeckCmd {
     /// List all decks.
-    List,
+    List {
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
     /// Set the active deck used by current/next/rate.
     Use {
         /// Deck name (e.g. cet4)
         deck: String,
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
     },
     /// Show the active deck.
     Current,
@@ -154,18 +161,21 @@ fn cmd_init() -> Result<()> {
 
 fn cmd_deck(sub: DeckCmd) -> Result<()> {
     match sub {
-        DeckCmd::List => cmd_deck_list(),
-        DeckCmd::Use { deck } => cmd_deck_use(&deck),
+        DeckCmd::List { json } => cmd_deck_list(json),
+        DeckCmd::Use { deck, json } => cmd_deck_use(&deck, json),
         DeckCmd::Current => cmd_deck_current(),
     }
 }
 
-fn cmd_deck_list() -> Result<()> {
+fn cmd_deck_list(json: bool) -> Result<()> {
     let storage = open_storage()?;
     let decks = storage.list_decks().context("failed to list decks")?;
     let active_deck_id = storage
         .get_active_deck_id()
         .context("failed to read active deck")?;
+    if json {
+        return print_json(&DeckListResponse::new(decks, active_deck_id));
+    }
     if decks.is_empty() {
         println!("No decks found.");
         return Ok(());
@@ -188,16 +198,29 @@ fn cmd_deck_list() -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_use(deck_name: &str) -> Result<()> {
+fn cmd_deck_use(deck_name: &str, json: bool) -> Result<()> {
     let storage = open_storage()?;
-    let deck = storage
+    let deck = match storage
         .get_deck_by_name(deck_name)
         .with_context(|| format!("failed to read deck '{deck_name}'"))?
-        .with_context(|| format!("deck not found: {deck_name}"))?;
+    {
+        Some(d) => d,
+        None if json => {
+            exit_json_error("deck_not_found", &format!("Deck not found: {deck_name}"));
+        }
+        None => anyhow::bail!("deck not found: {deck_name}"),
+    };
     storage
         .set_active_deck_id(Some(deck.id))
         .with_context(|| format!("failed to set active deck '{deck_name}'"))?;
-    println!("Active deck: {} ({})", deck.name, deck.id);
+    storage
+        .set_current_card_id(None)
+        .with_context(|| "failed to clear current card on deck switch")?;
+    if json {
+        print_json(&DeckUseResponse::new(&deck))?;
+    } else {
+        println!("Active deck: {} ({})", deck.name, deck.id);
+    }
     Ok(())
 }
 
