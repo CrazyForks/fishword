@@ -52,7 +52,6 @@ cargo install --path crates/fishword-cli
 fishword init
 fishword import qwerty crates/fishword-core/fixtures/qwerty_cet4_sample.json --deck cet4 --name CET-4
 fishword current
-fishword next
 fishword rate good
 ```
 
@@ -78,7 +77,6 @@ cargo uninstall fishword-cli
 ```bash
 cargo run -p fishword-cli -- init
 cargo run -p fishword-cli -- current --json
-cargo run -p fishword-cli -- next --json
 cargo run -p fishword-cli -- rate good --json
 ```
 
@@ -109,7 +107,7 @@ pnpm dev:cli && pnpm smoke:cli
 pnpm check
 ```
 
-冒烟测试覆盖完整链路：`init → import → current → next → rate`，使用独立临时 HOME，不影响本机数据。
+冒烟测试覆盖完整链路：`init → import → current → rate`，使用独立临时 HOME，不影响本机数据。
 
 ---
 

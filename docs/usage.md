@@ -99,13 +99,7 @@ fishword deck current
 fishword current --json
 ```
 
-选择下一张卡片：
-
-```bash
-fishword next --json
-```
-
-评分：
+评分（记录学习状态，并自动推进到下一张卡片）：
 
 ```bash
 fishword rate again --json
@@ -114,13 +108,12 @@ fishword rate good --json
 fishword rate easy --json
 ```
 
-`current` 和 `next` 不写 review log。只有 `rate again|hard|good|easy` 会更新学习状态。
+`rate` 响应中的 `next` 字段包含下一张卡片，今日无更多卡片时为 `null`。
 
 也可以用 `--deck` 为单次命令指定词库作用域：
 
 ```bash
 fishword current --deck cet4 --json
-fishword next --deck cet4 --json
 fishword rate good --deck cet4 --json
 ```
 

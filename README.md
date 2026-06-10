@@ -46,7 +46,6 @@ fishword import qwerty
 fishword deck current
 fishword deck use <deck>
 fishword current --json
-fishword next --json
 fishword rate good --json
 ```
 
@@ -55,7 +54,6 @@ fishword rate good --json
 ```bash
 cargo run -p fishword-cli -- init
 cargo run -p fishword-cli -- current --json
-cargo run -p fishword-cli -- next --json
 cargo run -p fishword-cli -- rate good --json
 ```
 
@@ -131,7 +129,6 @@ HOME=/private/tmp/fishword-dev fishword init
 HOME=/private/tmp/fishword-dev fishword import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
 HOME=/private/tmp/fishword-dev fishword deck use cet4
 HOME=/private/tmp/fishword-dev fishword current --json
-HOME=/private/tmp/fishword-dev fishword next --json
 HOME=/private/tmp/fishword-dev fishword rate good --json
 ```
 
