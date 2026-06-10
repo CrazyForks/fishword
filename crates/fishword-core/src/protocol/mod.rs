@@ -12,6 +12,8 @@ pub const CURRENT_SCHEMA: &str = "fishword.protocol.current.v1";
 pub const NEXT_SCHEMA: &str = "fishword.protocol.next.v1";
 pub const RATE_SCHEMA: &str = "fishword.protocol.rate.v1";
 pub const ERROR_SCHEMA: &str = "fishword.protocol.error.v1";
+pub const DECKS_SCHEMA: &str = "fishword.protocol.decks.v1";
+pub const DECK_USE_SCHEMA: &str = "fishword.protocol.deck_use.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {
@@ -49,6 +51,57 @@ pub struct RateResponse {
     pub display: DisplayFields,
     pub progress: ProgressFields,
     pub review: ReviewFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckListResponse {
+    pub schema: &'static str,
+    pub decks: Vec<DeckItem>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckItem {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckUseResponse {
+    pub schema: &'static str,
+    pub name: String,
+    pub description: Option<String>,
+    pub message: String,
+}
+
+impl DeckUseResponse {
+    pub fn new(deck: &crate::deck::Deck) -> Self {
+        let display = deck.description.clone().unwrap_or_else(|| deck.name.clone());
+        Self {
+            schema: DECK_USE_SCHEMA,
+            name: deck.name.clone(),
+            description: deck.description.clone(),
+            message: format!("Active deck: {display}"),
+        }
+    }
+}
+
+impl DeckListResponse {
+    pub fn new(decks: Vec<crate::deck::Deck>, active_id: Option<i64>) -> Self {
+        Self {
+            schema: DECKS_SCHEMA,
+            decks: decks
+                .into_iter()
+                .map(|d| DeckItem {
+                    active: Some(d.id) == active_id,
+                    id: d.id,
+                    name: d.name,
+                    description: d.description,
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
