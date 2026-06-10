@@ -1,0 +1,116 @@
+use anyhow::{Context, Result};
+use fishword_core::{
+    protocol::{DeckListResponse, DeckUseResponse},
+    storage::Storage,
+};
+
+use crate::{
+    args::DeckCmd,
+    util::{exit_json_error, open_storage, print_json, resolve_deck_scope},
+};
+
+pub fn cmd_init() -> Result<()> {
+    let path = Storage::default_path().context("cannot determine data directory")?;
+    Storage::open(&path)
+        .with_context(|| format!("cannot initialize database at {}", path.display()))?;
+    println!("Initialized: {}", path.display());
+    Ok(())
+}
+
+pub fn cmd_deck(sub: DeckCmd) -> Result<()> {
+    match sub {
+        DeckCmd::List { json } => cmd_deck_list(json),
+        DeckCmd::Use { deck, json } => cmd_deck_use(&deck, json),
+        DeckCmd::Current => cmd_deck_current(),
+    }
+}
+
+fn cmd_deck_list(json: bool) -> Result<()> {
+    let storage = open_storage()?;
+    let decks = storage.list_decks().context("failed to list decks")?;
+    let active_deck_id = storage
+        .get_active_deck_id()
+        .context("failed to read active deck")?;
+    if json {
+        return print_json(&DeckListResponse::new(decks, active_deck_id));
+    }
+    if decks.is_empty() {
+        println!("No decks found.");
+        return Ok(());
+    }
+    println!("{:<6}  {:<6}  {:<20}  DESCRIPTION", "ACTIVE", "ID", "NAME");
+    println!("{}", "-".repeat(60));
+    for d in decks {
+        println!(
+            "{:<6}  {:<6}  {:<20}  {}",
+            if Some(d.id) == active_deck_id { "*" } else { "" },
+            d.id,
+            d.name,
+            d.description.as_deref().unwrap_or("")
+        );
+    }
+    Ok(())
+}
+
+fn cmd_deck_use(deck_name: &str, json: bool) -> Result<()> {
+    let storage = open_storage()?;
+    let deck = match storage
+        .get_deck_by_name(deck_name)
+        .with_context(|| format!("failed to read deck '{deck_name}'"))?
+    {
+        Some(d) => d,
+        None if json => {
+            exit_json_error("deck_not_found", &format!("Deck not found: {deck_name}"));
+        }
+        None => anyhow::bail!("deck not found: {deck_name}"),
+    };
+    storage
+        .set_active_deck_id(Some(deck.id))
+        .with_context(|| format!("failed to set active deck '{deck_name}'"))?;
+    storage
+        .set_current_card_id(None)
+        .with_context(|| "failed to clear current card on deck switch")?;
+    if json {
+        print_json(&DeckUseResponse::new(&deck))?;
+    } else {
+        println!("Active deck: {} ({})", deck.name, deck.id);
+    }
+    Ok(())
+}
+
+fn cmd_deck_current() -> Result<()> {
+    let storage = open_storage()?;
+    match resolve_deck_scope(&storage, None, false)? {
+        Some(deck) => println!(
+            "Active deck: {} ({}) {}",
+            deck.name,
+            deck.id,
+            deck.description.as_deref().unwrap_or("")
+        ),
+        None => println!("No decks found."),
+    }
+    Ok(())
+}
+
+pub fn cmd_card_list(deck: &str) -> Result<()> {
+    let storage = open_storage()?;
+    let cards = storage
+        .list_cards_by_deck(deck)
+        .with_context(|| format!("failed to list cards for deck '{deck}'"))?;
+    if cards.is_empty() {
+        println!("No cards in deck '{deck}'.");
+        return Ok(());
+    }
+    println!("{:<6}  {:<20}  MEANINGS", "ID", "WORD");
+    println!("{}", "-".repeat(60));
+    for c in cards {
+        let meanings_summary = c
+            .meanings
+            .iter()
+            .map(|m| format!("[{}] {}", m.part_of_speech, m.definition))
+            .collect::<Vec<_>>()
+            .join("; ");
+        println!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary);
+    }
+    Ok(())
+}

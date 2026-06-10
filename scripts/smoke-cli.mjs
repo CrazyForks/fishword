@@ -59,14 +59,12 @@ try {
     throw new Error("current --json did not return a card term");
   }
 
-  const next = run(["next", "--deck", "smoke", "--json"], { json: true });
-  if (!next.card?.term) {
-    throw new Error("next --json did not return a card term");
-  }
-
   const rated = run(["rate", "good", "--deck", "smoke", "--json"], { json: true });
   if (rated.review?.rating !== "good") {
     throw new Error("rate good --json did not return a good review");
+  }
+  if (!("next" in rated)) {
+    throw new Error("rate --json did not include a next field");
   }
 
   console.log(`smoke:cli ok (${current.card.term})`);

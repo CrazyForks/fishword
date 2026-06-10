@@ -138,6 +138,9 @@ impl TryFrom<i64> for Rating {
     }
 }
 
+/// 单张卡片的一条复习记录，对应 `review_log` 表中的一行。
+/// 目前该表仅供 FSRS 调度器内部读取，尚未对外暴露查询接口。
+/// TODO: 实现 `fishword history <word>` 命令及复习统计报表。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewLog {
     pub id: i64,

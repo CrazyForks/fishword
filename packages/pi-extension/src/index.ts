@@ -127,20 +127,22 @@ export default function (pi: ExtensionAPI) {
   async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
     ctx_ref = ctx;
     try {
-      // Rate current card
-      await runFishword(["rate", rating, "--json"]);
-      // Advance to next card and refresh overlay
-      const res = await runFishword(["next", "--json"]);
+      const res = await runFishword(["rate", rating, "--json"]);
       if (res["schema"] === "fishword.protocol.error.v1") {
         const code = (res["error"] as { code?: string })?.code;
         overlayHandle?.hide();
         overlayHandle = null;
-        if (code === "no_cards") {
+        ctx.ui.setStatus("fishword", code === "no_active_deck" ? "no active deck" : undefined);
+      } else {
+        const next = res["next"] as Record<string, unknown> | null;
+        if (next) {
+          ctx.ui.setStatus("fishword", undefined);
+          showCardOverlay(ctx, parseCard(next));
+        } else {
+          overlayHandle?.hide();
+          overlayHandle = null;
           ctx.ui.setStatus("fishword", "🎉 all done for today!");
         }
-      } else {
-        ctx.ui.setStatus("fishword", undefined);
-        showCardOverlay(ctx, parseCard(res));
       }
     } catch {
       overlayHandle?.hide();

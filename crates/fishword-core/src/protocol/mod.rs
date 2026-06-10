@@ -51,6 +51,8 @@ pub struct RateResponse {
     pub display: DisplayFields,
     pub progress: ProgressFields,
     pub review: ReviewFields,
+    /// 评分后自动推进的下一张卡片，今日无更多卡片时为 null。
+    pub next: Option<CardResponse>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -215,6 +217,7 @@ impl RateResponse {
         deck: &Deck,
         review: &ScheduledReview,
         progress: ProgressCounts,
+        next: Option<(&SelectedCard, &Deck)>,
     ) -> Self {
         Self {
             schema: RATE_SCHEMA,
@@ -230,6 +233,7 @@ impl RateResponse {
                 difficulty: review.difficulty,
                 state: review.state.to_string(),
             },
+            next: next.map(|(selected, next_deck)| CardResponse::next(selected, next_deck, progress)),
         }
     }
 }
