@@ -1,0 +1,11 @@
+{
+  "schema": "fishword.protocol.decks.v1",
+  "decks": [
+    {
+      "id": 1,
+      "name": "cet4",
+      "description": "CET-4",
+      "active": true
+    }
+  ]
+}

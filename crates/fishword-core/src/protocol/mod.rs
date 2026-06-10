@@ -387,7 +387,8 @@ fn selection_reason(reason: SelectionReason) -> &'static str {
 mod tests {
     use super::*;
     use crate::{
-        card::{Meaning, Pronunciation, Source},
+        card::{Meaning, Pronunciation, Rating, ReviewState, Source},
+        scheduler::ScheduledReview,
         selector::SelectedCard,
     };
 
@@ -462,6 +463,60 @@ mod tests {
         .unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
             "../../fixtures/protocol_error_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn deck_list_response_serializes_stable_fields() {
+        let response = DeckListResponse::new(vec![sample_deck()], Some(1));
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_decks_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn deck_use_response_serializes_stable_fields() {
+        let response = DeckUseResponse::new(&sample_deck());
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_deck_use_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn rate_response_serializes_stable_fields() {
+        let review = ScheduledReview {
+            card_id: 1,
+            rating: Rating::Good,
+            reviewed_at: "2026-06-10 00:00:00".to_string(),
+            due: "2026-06-14 00:00:00".to_string(),
+            elapsed_days: 0,
+            scheduled_days: 4,
+            stability: 4.0,
+            difficulty: 5.0,
+            state: ReviewState::Learning,
+        };
+        let response = RateResponse::new(
+            &sample_card(),
+            &sample_deck(),
+            &review,
+            ProgressCounts {
+                due_count: 0,
+                new_remaining: 19,
+                reviewed_today: 1,
+            },
+            None,
+        );
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_rate_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);

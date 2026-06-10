@@ -5,6 +5,8 @@
   "oneOf": [
     { "$ref": "#/$defs/card_response" },
     { "$ref": "#/$defs/rate_response" },
+    { "$ref": "#/$defs/decks_response" },
+    { "$ref": "#/$defs/deck_use_response" },
     { "$ref": "#/$defs/error_response" }
   ],
   "$defs": {
@@ -28,13 +30,42 @@
     "rate_response": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "card", "display", "progress", "review"],
+      "required": ["schema", "card", "display", "progress", "review", "next"],
       "properties": {
         "schema": { "const": "fishword.protocol.rate.v1" },
         "card": { "$ref": "#/$defs/card" },
         "display": { "$ref": "#/$defs/display" },
         "progress": { "$ref": "#/$defs/progress" },
-        "review": { "$ref": "#/$defs/review" }
+        "review": { "$ref": "#/$defs/review" },
+        "next": {
+          "oneOf": [
+            { "$ref": "#/$defs/card_response" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "decks_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "decks"],
+      "properties": {
+        "schema": { "const": "fishword.protocol.decks.v1" },
+        "decks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deck_item" }
+        }
+      }
+    },
+    "deck_use_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "name", "message"],
+      "properties": {
+        "schema": { "const": "fishword.protocol.deck_use.v1" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "message": { "type": "string" }
       }
     },
     "error_response": {
@@ -113,6 +144,17 @@
             "license": { "type": ["string", "null"] }
           }
         }
+      }
+    },
+    "deck_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "active"],
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "active": { "type": "boolean" }
       }
     },
     "display": {

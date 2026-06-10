@@ -1,0 +1,6 @@
+{
+  "schema": "fishword.protocol.deck_use.v1",
+  "name": "cet4",
+  "description": "CET-4",
+  "message": "Active deck: CET-4"
+}
