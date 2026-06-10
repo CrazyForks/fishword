@@ -23,6 +23,13 @@ type DeckItem = {
   active: boolean;
 };
 
+const RATINGS: { rating: Rating; key: string }[] = [
+  { rating: "again", key: "ctrl+shift+a" },
+  { rating: "hard",  key: "ctrl+shift+h" },
+  { rating: "good",  key: "ctrl+shift+g" },
+  { rating: "easy",  key: "ctrl+shift+e" },
+];
+
 async function runFishword(args: string[]): Promise<Record<string, unknown>> {
   try {
     const { stdout } = await execAsync(fishwordPath, args);
@@ -36,6 +43,14 @@ async function runFishword(args: string[]): Promise<Record<string, unknown>> {
     }
     throw err;
   }
+}
+
+function isErrorResponse(res: Record<string, unknown>): boolean {
+  return res["schema"] === "fishword.protocol.error.v1";
+}
+
+function getErrorCode(res: Record<string, unknown>): string | undefined {
+  return (res["error"] as { code?: string })?.code;
 }
 
 function parseCard(res: Record<string, unknown>): Card {
@@ -57,11 +72,14 @@ function formatMeaning(card: Card): string {
 export default function (pi: ExtensionAPI) {
   let overlayHandle: OverlayHandle | null = null;
   let deckSelectorHandle: OverlayHandle | null = null;
-  let ctx_ref: ExtensionContext | null = null;
 
-  function showCardOverlay(ctx: ExtensionContext, card: Card): void {
+  function hideOverlay(): void {
     overlayHandle?.hide();
     overlayHandle = null;
+  }
+
+  function showCardOverlay(ctx: ExtensionContext, card: Card): void {
+    hideOverlay();
 
     const term = card.term;
     const phonetic = formatPhonetic(card);
@@ -106,47 +124,38 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function refreshDisplay(ctx: ExtensionContext): Promise<void> {
-    ctx_ref = ctx;
     try {
       const res = await runFishword(["current", "--json"]);
-      if (res["schema"] === "fishword.protocol.error.v1") {
-        const code = (res["error"] as { code?: string })?.code;
-        overlayHandle?.hide();
-        overlayHandle = null;
-        ctx.ui.setStatus("fishword", code === "no_active_deck" ? "no active deck" : undefined);
+      if (isErrorResponse(res)) {
+        hideOverlay();
+        ctx.ui.setStatus("fishword", getErrorCode(res) === "no_active_deck" ? "no active deck" : undefined);
       } else {
         ctx.ui.setStatus("fishword", undefined);
         showCardOverlay(ctx, parseCard(res));
       }
     } catch {
-      overlayHandle?.hide();
-      overlayHandle = null;
+      hideOverlay();
     }
   }
 
   async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
-    ctx_ref = ctx;
     try {
       const res = await runFishword(["rate", rating, "--json"]);
-      if (res["schema"] === "fishword.protocol.error.v1") {
-        const code = (res["error"] as { code?: string })?.code;
-        overlayHandle?.hide();
-        overlayHandle = null;
-        ctx.ui.setStatus("fishword", code === "no_active_deck" ? "no active deck" : undefined);
+      if (isErrorResponse(res)) {
+        hideOverlay();
+        ctx.ui.setStatus("fishword", getErrorCode(res) === "no_active_deck" ? "no active deck" : undefined);
       } else {
         const next = res["next"] as Record<string, unknown> | null;
         if (next) {
           ctx.ui.setStatus("fishword", undefined);
           showCardOverlay(ctx, parseCard(next));
         } else {
-          overlayHandle?.hide();
-          overlayHandle = null;
+          hideOverlay();
           ctx.ui.setStatus("fishword", "🎉 all done for today!");
         }
       }
     } catch {
-      overlayHandle?.hide();
-      overlayHandle = null;
+      hideOverlay();
     }
   }
 
@@ -177,8 +186,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       // 隐藏词卡 overlay，避免与选择器重叠
-      overlayHandle?.hide();
-      overlayHandle = null;
+      hideOverlay();
 
       const activeIndex = decks.findIndex((d) => d.active);
       const selectItems = decks.map((d) => ({
@@ -213,9 +221,8 @@ export default function (pi: ExtensionAPI) {
             deckSelectorHandle?.hide();
             deckSelectorHandle = null;
             const res = await runFishword(["deck", "use", item.value, "--json"]);
-            if (res["schema"] === "fishword.protocol.error.v1") {
-              const code = (res["error"] as { code?: string })?.code;
-              ctx.ui.notify(`Failed: ${code ?? "unknown error"}`, "error");
+            if (isErrorResponse(res)) {
+              ctx.ui.notify(`Failed: ${getErrorCode(res) ?? "unknown error"}`, "error");
             } else {
               await refreshDisplay(ctx);
               ctx.ui.notify(`Switched to: ${item.description ?? item.label}`, "info");
@@ -263,25 +270,12 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("fw-again", {
-    description: "Fishword: rate again → next card",
-    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "again"); },
-  });
-
-  pi.registerCommand("fw-hard", {
-    description: "Fishword: rate hard → next card",
-    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "hard"); },
-  });
-
-  pi.registerCommand("fw-good", {
-    description: "Fishword: rate good → next card",
-    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "good"); },
-  });
-
-  pi.registerCommand("fw-easy", {
-    description: "Fishword: rate easy → next card",
-    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "easy"); },
-  });
+  for (const { rating } of RATINGS) {
+    pi.registerCommand(`fw-${rating}`, {
+      description: `Fishword: rate ${rating} → next card`,
+      handler: async (_args, ctx) => { await rateAndAdvance(ctx, rating); },
+    });
+  }
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   pi.registerShortcut("ctrl+shift+v", {
@@ -289,23 +283,10 @@ export default function (pi: ExtensionAPI) {
     handler: async (ctx) => { await refreshDisplay(ctx); },
   });
 
-  pi.registerShortcut("ctrl+shift+a", {
-    description: "Fishword: rate again → next card",
-    handler: async (ctx) => { await rateAndAdvance(ctx, "again"); },
-  });
-
-  pi.registerShortcut("ctrl+shift+h", {
-    description: "Fishword: rate hard → next card",
-    handler: async (ctx) => { await rateAndAdvance(ctx, "hard"); },
-  });
-
-  pi.registerShortcut("ctrl+shift+g", {
-    description: "Fishword: rate good → next card",
-    handler: async (ctx) => { await rateAndAdvance(ctx, "good"); },
-  });
-
-  pi.registerShortcut("ctrl+shift+e", {
-    description: "Fishword: rate easy → next card",
-    handler: async (ctx) => { await rateAndAdvance(ctx, "easy"); },
-  });
+  for (const { rating, key } of RATINGS) {
+    pi.registerShortcut(key, {
+      description: `Fishword: rate ${rating} → next card`,
+      handler: async (ctx) => { await rateAndAdvance(ctx, rating); },
+    });
+  }
 }
