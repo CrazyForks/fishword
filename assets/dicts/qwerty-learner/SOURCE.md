@@ -1,20 +1,19 @@
-# Qwerty Learner Dictionaries
+# Qwerty Learner 词库来源说明
 
-These default dictionaries were copied from Qwerty Learner.
+这些默认词库来自 Qwerty Learner 项目。
 
-- Upstream repository: https://github.com/RealKai42/qwerty-learner
-- Upstream directory: `public/dicts/`
-- Upstream commit: `2498f753aaf955645f466664d3972c2c7d29dd55`
-- Copied on: 2026-06-09
-- JSON dictionary files: 380
-- License: GPL-3.0
+- 上游仓库：https://github.com/RealKai42/qwerty-learner
+- 上游目录：`public/dicts/`
+- 上游 commit：`2498f753aaf955645f466664d3972c2c7d29dd55`
+- 收录时间：2026-06-09
+- JSON 词库文件数：380
+- 上游许可证：GPL-3.0
 
-Bundled upstream files:
+收录的上游文件：
 
-- `dicts/`: copied from upstream `public/dicts/`
-- `upstream/LICENSE`: copied from upstream `LICENSE`
-- `upstream/README.md`: copied from upstream `README.md`
-- `upstream/dictionary.ts`: copied from upstream `src/resources/dictionary.ts`
+- `dicts/`：来自上游 `public/dicts/`
+- `upstream/LICENSE`：来自上游 `LICENSE`
+- `upstream/README.md`：来自上游 `README.md`
+- `upstream/dictionary.ts`：来自上游 `src/resources/dictionary.ts`
 
-Keep this source notice and the GPL-3.0 license copy when redistributing these
-dictionaries.
+再分发这些词库时，请遵守 GPL-3.0，保留本说明文件和 `upstream/LICENSE` 中的许可证副本。

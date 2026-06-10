@@ -151,36 +151,4 @@ pnpm dev:cli
 
 ## 默认词库
 
-本仓库内置了来自 [Qwerty Learner](https://github.com/RealKai42/qwerty-learner) 的默认词库。
-
-- 本地路径：`assets/dicts/qwerty-learner/dicts/`
-- 上游仓库：`https://github.com/RealKai42/qwerty-learner`
-- 上游目录：`public/dicts/`
-- 导入的上游 commit：`2498f753aaf955645f466664d3972c2c7d29dd55`
-- 词库数量：380 个 JSON 文件
-- 上游许可证：GPL-3.0
-- 内置许可证副本：`assets/dicts/qwerty-learner/upstream/LICENSE`
-
-这些词库按上游 GPL-3.0 许可证再分发。如果分发包含这些词库的 Fishword，请遵守 GPL-3.0，并保留 attribution 和 license notice。
-
-常用导入命令：
-
-```bash
-fishword import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-fishword import qwerty assets/dicts/qwerty-learner/dicts/CET6_T.json --deck cet6 --name "CET-6"
-fishword import qwerty assets/dicts/qwerty-learner/dicts/TOEFL_3_T.json --deck toefl --name "TOEFL"
-```
-
-查看导入结果：
-
-```bash
-fishword deck list
-fishword card list --deck cet4
-```
-
-选择当前学习词库：
-
-```bash
-fishword deck use cet4
-fishword deck current
-```
+内置词库来源及许可证说明见 [assets/dicts/qwerty-learner/SOURCE.md](./assets/dicts/qwerty-learner/SOURCE.md)。
