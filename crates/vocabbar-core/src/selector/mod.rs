@@ -47,8 +47,9 @@ impl Selector {
 
     pub fn select_next(storage: &Storage) -> Result<Option<SelectedCard>> {
         let selector = Self::default();
+        let current_card_id = storage.get_current_card_id()?;
         let candidates = storage.list_cards_with_state()?;
-        let selected = selector.select_from_candidates(&candidates)?;
+        let selected = selector.select_from_candidates(&candidates, current_card_id)?;
         if let Some(selected) = &selected {
             storage.set_current_card_id(Some(selected.card.id))?;
         }
@@ -58,7 +59,20 @@ impl Selector {
     pub fn select_from_candidates(
         &self,
         candidates: &[CardWithState],
+        skip_card_id: Option<i64>,
     ) -> Result<Option<SelectedCard>> {
+        let all_candidates = candidates.iter().collect::<Vec<_>>();
+        let filtered_candidates = candidates
+            .iter()
+            .filter(|candidate| Some(candidate.card.id) != skip_card_id)
+            .collect::<Vec<_>>();
+        let candidates = if filtered_candidates.is_empty() {
+            // If there is only one selectable card, `next` keeps it selected.
+            // Otherwise the command would turn a valid single-card deck into no card.
+            all_candidates
+        } else {
+            filtered_candidates
+        };
         let now = Utc::now();
         let mut due = candidates
             .iter()
@@ -152,12 +166,27 @@ mod tests {
     }
 
     #[test]
+    fn next_skips_current_card_when_possible() {
+        let storage = open_temp();
+        let first_id = insert_card(&storage, "first");
+        let second_id = insert_card(&storage, "second");
+
+        storage.set_current_card_id(Some(first_id)).unwrap();
+        let selected = Selector::select_next(&storage).unwrap().unwrap();
+
+        assert_eq!(selected.card.id, second_id);
+        assert_eq!(storage.review_log_count(first_id).unwrap(), 0);
+        assert_eq!(storage.review_log_count(second_id).unwrap(), 0);
+    }
+
+    #[test]
     fn due_review_card_beats_new_card() {
         let storage = open_temp();
         let due_card = insert_card(&storage, "due");
         insert_card(&storage, "new");
 
         Scheduler::review(&storage, due_card, Rating::Again).unwrap();
+        storage.set_current_card_id(None).unwrap();
         let selected = Selector::select_next(&storage).unwrap().unwrap();
 
         assert_eq!(selected.card.id, due_card);

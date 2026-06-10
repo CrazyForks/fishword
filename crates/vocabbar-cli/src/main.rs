@@ -3,13 +3,14 @@ use std::{path::PathBuf, str::FromStr};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use vocabbar_core::{
-    card::{Card, Rating},
+    card::Rating,
     importer::{
         import_anki_tsv_file, import_csv_file, import_jsonl_file, import_qwerty_file,
         DuplicateStrategy, ImportDeck,
     },
+    protocol::{render_card, CardResponse, ErrorResponse, RateResponse, TextFormat},
     scheduler::Scheduler,
-    selector::Selector,
+    selector::{SelectedCard, Selector},
     storage::Storage,
 };
 
@@ -40,14 +41,11 @@ enum Cmd {
         sub: ImportCmd,
     },
     /// Show the current selected card.
-    Current,
+    Current(CardOutputArgs),
     /// Select the next card without writing review history.
-    Next,
+    Next(CardOutputArgs),
     /// Rate the current card: again, hard, good, easy.
-    Rate {
-        /// Review rating.
-        rating: String,
-    },
+    Rate(RateArgs),
 }
 
 #[derive(Subcommand)]
@@ -93,6 +91,25 @@ struct ImportArgs {
     duplicates: String,
 }
 
+#[derive(Parser)]
+struct CardOutputArgs {
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    json: bool,
+    /// Human-readable output format: plain, compact, status.
+    #[arg(long, default_value = "plain")]
+    format: String,
+}
+
+#[derive(Parser)]
+struct RateArgs {
+    /// Review rating: again, hard, good, easy.
+    rating: String,
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    json: bool,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -102,9 +119,9 @@ fn main() -> Result<()> {
             sub: CardCmd::List { deck },
         } => cmd_card_list(&deck),
         Cmd::Import { sub } => cmd_import(sub),
-        Cmd::Current => cmd_current(),
-        Cmd::Next => cmd_next(),
-        Cmd::Rate { rating } => cmd_rate(&rating),
+        Cmd::Current(args) => cmd_current(&args),
+        Cmd::Next(args) => cmd_next(&args),
+        Cmd::Rate(args) => cmd_rate(&args),
     }
 }
 
@@ -164,64 +181,121 @@ fn cmd_card_list(deck: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_current() -> Result<()> {
+fn cmd_current(args: &CardOutputArgs) -> Result<()> {
     let storage = open_storage()?;
     match Selector::select_current(&storage).context("failed to select current card")? {
-        Some(selected) => print_card(&selected.card),
+        Some(selected) => print_selected_card(&storage, &selected, args, true)?,
+        None if args.json => exit_json_error("no_cards", "No cards found. Import a deck first."),
         None => println!("No cards found. Import a deck first."),
     }
     Ok(())
 }
 
-fn cmd_next() -> Result<()> {
+fn cmd_next(args: &CardOutputArgs) -> Result<()> {
     let storage = open_storage()?;
     match Selector::select_next(&storage).context("failed to select next card")? {
-        Some(selected) => print_card(&selected.card),
+        Some(selected) => print_selected_card(&storage, &selected, args, false)?,
+        None if args.json => exit_json_error("no_cards", "No cards found. Import a deck first."),
         None => println!("No cards found. Import a deck first."),
     }
     Ok(())
 }
 
-fn cmd_rate(value: &str) -> Result<()> {
-    let rating = value
+fn cmd_rate(args: &RateArgs) -> Result<()> {
+    let rating = args
+        .rating
         .parse::<Rating>()
         .map_err(anyhow::Error::msg)
-        .with_context(|| format!("invalid rating '{value}', expected again/hard/good/easy"))?;
+        .with_context(|| {
+            format!(
+                "invalid rating '{}', expected again/hard/good/easy",
+                args.rating
+            )
+        })?;
     let storage = open_storage()?;
-    let card_id = storage
+    let Some(card_id) = storage
         .get_current_card_id()
         .context("failed to read current card")?
-        .context("No current card. Run `vocabbar next` first.")?;
+    else {
+        if args.json {
+            exit_json_error(
+                "no_current_card",
+                "No current card. Run `vocabbar next` first.",
+            );
+        }
+        anyhow::bail!("No current card. Run `vocabbar next` first.");
+    };
     let review = Scheduler::review(&storage, card_id, rating).context("failed to rate card")?;
     let card = storage
         .get_card_by_id(card_id)
         .context("failed to read reviewed card")?
         .context("Reviewed card disappeared")?;
-    println!(
-        "Rated {} as {}. due={} scheduled_days={}",
-        card.word, review.rating, review.due, review.scheduled_days
-    );
+    if args.json {
+        let deck = storage
+            .get_deck_by_id(card.deck_id)
+            .context("failed to read deck")?
+            .context("Reviewed card deck disappeared")?;
+        let progress = storage
+            .progress_counts(20)
+            .context("failed to read progress")?;
+        print_json(&RateResponse::new(&card, &deck, &review, progress))?;
+    } else {
+        println!(
+            "Rated {} as {}. due={} scheduled_days={}",
+            card.word, review.rating, review.due, review.scheduled_days
+        );
+    }
     Ok(())
 }
 
-fn print_card(card: &Card) {
-    let meanings = card
-        .meanings
-        .iter()
-        .map(|meaning| meaning.definition.as_str())
-        .collect::<Vec<_>>()
-        .join("; ");
-    let pronunciations = card
-        .pronunciations
-        .iter()
-        .map(|pronunciation| pronunciation.notation.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    if pronunciations.is_empty() {
-        println!("{} - {}", card.word, meanings);
+fn print_selected_card(
+    storage: &Storage,
+    selected: &SelectedCard,
+    args: &CardOutputArgs,
+    current: bool,
+) -> Result<()> {
+    let deck = storage
+        .get_deck_by_id(selected.card.deck_id)
+        .context("failed to read deck")?
+        .context("Selected card deck disappeared")?;
+    let progress = storage
+        .progress_counts(20)
+        .context("failed to read progress")?;
+    let response = if current {
+        CardResponse::current(selected, &deck, progress)
     } else {
-        println!("{} {} - {}", card.word, pronunciations, meanings);
+        CardResponse::next(selected, &deck, progress)
+    };
+    if args.json {
+        print_json(&response)?;
+    } else {
+        let format = args
+            .format
+            .parse::<TextFormat>()
+            .map_err(anyhow::Error::msg)
+            .with_context(|| {
+                format!(
+                    "invalid --format '{}', expected plain/compact/status",
+                    args.format
+                )
+            })?;
+        println!("{}", render_card(&response, format));
     }
+    Ok(())
+}
+
+fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {
+    println!("{}", serde_json::to_string(value)?);
+    Ok(())
+}
+
+fn exit_json_error(code: &str, message: &str) -> ! {
+    println!(
+        "{}",
+        serde_json::to_string(&ErrorResponse::new(code, message))
+            .expect("serializing protocol error should not fail")
+    );
+    std::process::exit(2);
 }
 
 fn cmd_import(command: ImportCmd) -> Result<()> {

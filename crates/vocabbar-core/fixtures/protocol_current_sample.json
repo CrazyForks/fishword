@@ -1,0 +1,39 @@
+{
+  "schema": "vocabbar.protocol.current.v1",
+  "card": {
+    "id": "cet4:cancel",
+    "db_id": 1,
+    "term": "cancel",
+    "language": "en",
+    "phonetic": {
+      "us": "'kænsl",
+      "uk": "'kænsl",
+      "other": []
+    },
+    "meanings": ["取消，撤销；删去"],
+    "deck": {
+      "id": "cet4",
+      "name": "CET-4",
+      "db_id": 1
+    },
+    "tags": ["cet4"],
+    "source": {
+      "name": "qwerty-learner",
+      "license": "GPL-3.0"
+    }
+  },
+  "display": {
+    "plain": "cancel 'kænsl - 取消，撤销；删去",
+    "compact": "📚 cancel /'kænsl/ 取消，撤销；删去",
+    "status": "📚 cancel /'kænsl/ | CET-4 | 取消，撤销；删去",
+    "masked": "📚 c_____ /'kænsl/"
+  },
+  "progress": {
+    "due_count": 1,
+    "new_today_remaining": 8,
+    "reviewed_today": 5
+  },
+  "selection": {
+    "reason": "new"
+  }
+}

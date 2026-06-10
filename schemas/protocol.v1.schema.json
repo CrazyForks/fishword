@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocabbar.local/schemas/protocol.v1.schema.json",
+  "title": "Vocabbar CLI protocol v1",
+  "oneOf": [
+    { "$ref": "#/$defs/card_response" },
+    { "$ref": "#/$defs/rate_response" },
+    { "$ref": "#/$defs/error_response" }
+  ],
+  "$defs": {
+    "card_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "card", "display", "progress", "selection"],
+      "properties": {
+        "schema": {
+          "enum": [
+            "vocabbar.protocol.current.v1",
+            "vocabbar.protocol.next.v1"
+          ]
+        },
+        "card": { "$ref": "#/$defs/card" },
+        "display": { "$ref": "#/$defs/display" },
+        "progress": { "$ref": "#/$defs/progress" },
+        "selection": { "$ref": "#/$defs/selection" }
+      }
+    },
+    "rate_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "card", "display", "progress", "review"],
+      "properties": {
+        "schema": { "const": "vocabbar.protocol.rate.v1" },
+        "card": { "$ref": "#/$defs/card" },
+        "display": { "$ref": "#/$defs/display" },
+        "progress": { "$ref": "#/$defs/progress" },
+        "review": { "$ref": "#/$defs/review" }
+      }
+    },
+    "error_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "error"],
+      "properties": {
+        "schema": { "const": "vocabbar.protocol.error.v1" },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        }
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "db_id",
+        "term",
+        "language",
+        "phonetic",
+        "meanings",
+        "deck",
+        "tags",
+        "source"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "db_id": { "type": "integer" },
+        "term": { "type": "string" },
+        "language": { "type": "string" },
+        "phonetic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["us", "uk", "other"],
+          "properties": {
+            "us": { "type": ["string", "null"] },
+            "uk": { "type": ["string", "null"] },
+            "other": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "meanings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deck": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name", "db_id"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "db_id": { "type": "integer" }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "source": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["name", "license"],
+          "properties": {
+            "name": { "type": "string" },
+            "license": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plain", "compact", "status", "masked"],
+      "properties": {
+        "plain": { "type": "string" },
+        "compact": { "type": "string" },
+        "status": { "type": "string" },
+        "masked": { "type": "string" }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["due_count", "new_today_remaining", "reviewed_today"],
+      "properties": {
+        "due_count": { "type": "integer" },
+        "new_today_remaining": { "type": "integer" },
+        "reviewed_today": { "type": "integer" }
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "enum": ["due", "new", "mature"] }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rating",
+        "due",
+        "elapsed_days",
+        "scheduled_days",
+        "stability",
+        "difficulty",
+        "state"
+      ],
+      "properties": {
+        "rating": { "enum": ["again", "hard", "good", "easy"] },
+        "due": { "type": "string" },
+        "elapsed_days": { "type": "integer" },
+        "scheduled_days": { "type": "integer" },
+        "stability": { "type": "number" },
+        "difficulty": { "type": "number" },
+        "state": { "enum": ["new", "learning", "review", "relearning"] }
+      }
+    }
+  }
+}

@@ -15,6 +15,13 @@ pub struct Storage {
     conn: Connection,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProgressCounts {
+    pub due_count: i64,
+    pub new_remaining: i64,
+    pub reviewed_today: i64,
+}
+
 impl Storage {
     /// Open (or create) the database at `path` and run migrations.
     pub fn open(path: &Path) -> Result<Self> {
@@ -82,6 +89,26 @@ impl Storage {
         let result = self.conn.query_row(
             "SELECT id, name, description, created_at FROM decks WHERE name = ?1",
             params![name],
+            |row| {
+                Ok(Deck {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            },
+        );
+        match result {
+            Ok(deck) => Ok(Some(deck)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    pub fn get_deck_by_id(&self, id: i64) -> Result<Option<Deck>> {
+        let result = self.conn.query_row(
+            "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
+            params![id],
             |row| {
                 Ok(Deck {
                     id: row.get(0)?,
@@ -363,6 +390,35 @@ impl Storage {
             |row| row.get(0),
         )?;
         Ok(count)
+    }
+
+    pub fn progress_counts(&self, daily_new_limit: i64) -> Result<ProgressCounts> {
+        let due_count = self.conn.query_row(
+            "SELECT COUNT(*)
+             FROM card_state
+             WHERE reps > 0 AND due <= datetime('now')",
+            [],
+            |row| row.get(0),
+        )?;
+        let new_count = self.conn.query_row(
+            "SELECT COUNT(*)
+             FROM card_state
+             WHERE reps = 0",
+            [],
+            |row| row.get::<_, i64>(0),
+        )?;
+        let reviewed_today = self.conn.query_row(
+            "SELECT COUNT(*)
+             FROM review_log
+             WHERE date(reviewed_at) = date('now')",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(ProgressCounts {
+            due_count,
+            new_remaining: daily_new_limit.min(new_count),
+            reviewed_today,
+        })
     }
 
     pub fn record_review(&self, review: &ScheduledReview) -> Result<()> {
