@@ -30,6 +30,10 @@ pub enum Cmd {
     },
     /// Show the current selected card.
     Current(CardOutputArgs),
+    /// Show today's learning status.
+    Status(StatusArgs),
+    /// Show review statistics.
+    Stats(StatsArgs),
     /// Rate the current card: again, hard, good, easy.
     Rate(RateArgs),
 }
@@ -102,6 +106,32 @@ pub struct CardOutputArgs {
     /// Human-readable output format: plain, compact, status.
     #[arg(long, default_value = "plain")]
     pub format: String,
+}
+
+#[derive(Parser)]
+pub struct StatusArgs {
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    pub json: bool,
+    /// Deck name used as this command's learning scope.
+    #[arg(long)]
+    pub deck: Option<String>,
+    /// Human-readable output format: plain, compact, statusline.
+    #[arg(long, default_value = "plain")]
+    pub format: String,
+}
+
+#[derive(Parser)]
+pub struct StatsArgs {
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    pub json: bool,
+    /// Deck name used as this command's learning scope.
+    #[arg(long)]
+    pub deck: Option<String>,
+    /// Time range. The first implementation supports 7d.
+    #[arg(long, default_value = "7d")]
+    pub range: String,
 }
 
 #[derive(Parser)]

@@ -22,6 +22,21 @@ pub struct ProgressCounts {
     pub reviewed_today: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DailyReviewStats {
+    pub reviews: i64,
+    pub again: i64,
+    pub hard: i64,
+    pub good: i64,
+    pub easy: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DailyReviewBucket {
+    pub date: String,
+    pub stats: DailyReviewStats,
+}
+
 impl Storage {
     /// Open (or create) the database at `path` and run migrations.
     pub fn open(path: &Path) -> Result<Self> {
@@ -482,6 +497,53 @@ impl Storage {
             new_remaining: daily_new_limit.min(new_count),
             reviewed_today,
         })
+    }
+
+    pub fn card_count_by_deck(&self, deck_id: i64) -> Result<i64> {
+        let count = self.conn.query_row(
+            "SELECT COUNT(*) FROM cards WHERE deck_id = ?1",
+            params![deck_id],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    pub fn review_stats_by_deck_and_day_range(
+        &self,
+        deck_id: i64,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<Vec<DailyReviewBucket>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT date(r.reviewed_at) AS day,
+                    COUNT(*) AS reviews,
+                    SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END) AS again,
+                    SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END) AS hard,
+                    SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END) AS good,
+                    SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END) AS easy
+             FROM review_log r
+             JOIN cards c ON c.id = r.card_id
+             WHERE c.deck_id = ?1
+               AND date(r.reviewed_at) >= ?2
+               AND date(r.reviewed_at) <= ?3
+             GROUP BY day
+             ORDER BY day",
+        )?;
+        let rows = stmt
+            .query_map(params![deck_id, start_date, end_date], |row| {
+                Ok(DailyReviewBucket {
+                    date: row.get(0)?,
+                    stats: DailyReviewStats {
+                        reviews: row.get(1)?,
+                        again: row.get(2)?,
+                        hard: row.get(3)?,
+                        good: row.get(4)?,
+                        easy: row.get(5)?,
+                    },
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
     }
 
     pub fn record_review(&self, review: &ScheduledReview) -> Result<()> {

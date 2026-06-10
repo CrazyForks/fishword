@@ -7,6 +7,8 @@
     { "$ref": "#/$defs/rate_response" },
     { "$ref": "#/$defs/decks_response" },
     { "$ref": "#/$defs/deck_use_response" },
+    { "$ref": "#/$defs/status_response" },
+    { "$ref": "#/$defs/stats_response" },
     { "$ref": "#/$defs/error_response" }
   ],
   "$defs": {
@@ -66,6 +68,69 @@
         "name": { "type": "string" },
         "description": { "type": ["string", "null"] },
         "message": { "type": "string" }
+      }
+    },
+    "status_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "deck", "mode", "today", "display", "next_action"],
+      "properties": {
+        "schema": { "const": "fishword.protocol.status.v1" },
+        "deck": { "$ref": "#/$defs/deck" },
+        "mode": { "enum": ["review", "complete", "empty"] },
+        "today": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["due", "new_remaining", "reviewed"],
+          "properties": {
+            "due": { "type": "integer" },
+            "new_remaining": { "type": "integer" },
+            "reviewed": { "type": "integer" }
+          }
+        },
+        "display": { "$ref": "#/$defs/status_display" },
+        "next_action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "label", "command"],
+          "properties": {
+            "kind": { "enum": ["review", "none"] },
+            "label": { "type": "string" },
+            "command": { "type": "string" }
+          }
+        }
+      }
+    },
+    "stats_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "deck", "range", "summary", "series"],
+      "properties": {
+        "schema": { "const": "fishword.protocol.stats.v1" },
+        "deck": { "$ref": "#/$defs/deck" },
+        "range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "days"],
+          "properties": {
+            "kind": { "const": "days" },
+            "days": { "type": "integer" }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviews", "reviewed_today", "good_or_easy_rate"],
+          "properties": {
+            "reviews": { "type": "integer" },
+            "reviewed_today": { "type": "integer" },
+            "good_or_easy_rate": { "type": ["number", "null"] }
+          }
+        },
+        "series": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/daily_stats" }
+        }
       }
     },
     "error_response": {
@@ -166,6 +231,38 @@
         "compact": { "type": "string" },
         "status": { "type": "string" },
         "masked": { "type": "string" }
+      }
+    },
+    "status_display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plain", "compact", "statusline"],
+      "properties": {
+        "plain": { "type": "string" },
+        "compact": { "type": "string" },
+        "statusline": { "type": "string" }
+      }
+    },
+    "daily_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "date",
+        "reviews",
+        "again",
+        "hard",
+        "good",
+        "easy",
+        "good_or_easy_rate"
+      ],
+      "properties": {
+        "date": { "type": "string" },
+        "reviews": { "type": "integer" },
+        "again": { "type": "integer" },
+        "hard": { "type": "integer" },
+        "good": { "type": "integer" },
+        "easy": { "type": "integer" },
+        "good_or_easy_rate": { "type": ["number", "null"] }
       }
     },
     "progress": {

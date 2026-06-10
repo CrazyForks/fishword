@@ -1,3 +1,4 @@
+use chrono::{Duration, NaiveDate, Utc};
 use serde::Serialize;
 
 use crate::{
@@ -5,7 +6,7 @@ use crate::{
     deck::Deck,
     scheduler::ScheduledReview,
     selector::{SelectedCard, SelectionReason},
-    storage::ProgressCounts,
+    storage::{DailyReviewBucket, DailyReviewStats, ProgressCounts},
 };
 
 pub const CURRENT_SCHEMA: &str = "fishword.protocol.current.v1";
@@ -14,6 +15,8 @@ pub const RATE_SCHEMA: &str = "fishword.protocol.rate.v1";
 pub const ERROR_SCHEMA: &str = "fishword.protocol.error.v1";
 pub const DECKS_SCHEMA: &str = "fishword.protocol.decks.v1";
 pub const DECK_USE_SCHEMA: &str = "fishword.protocol.deck_use.v1";
+pub const STATUS_SCHEMA: &str = "fishword.protocol.status.v1";
+pub const STATS_SCHEMA: &str = "fishword.protocol.stats.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {
@@ -77,14 +80,200 @@ pub struct DeckUseResponse {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct StatusResponse {
+    pub schema: &'static str,
+    pub deck: DeckFields,
+    pub mode: String,
+    pub today: TodayStatusFields,
+    pub display: StatusDisplayFields,
+    pub next_action: NextActionFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TodayStatusFields {
+    pub due: i64,
+    pub new_remaining: i64,
+    pub reviewed: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StatusDisplayFields {
+    pub plain: String,
+    pub compact: String,
+    pub statusline: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NextActionFields {
+    pub kind: String,
+    pub label: String,
+    pub command: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StatsResponse {
+    pub schema: &'static str,
+    pub deck: DeckFields,
+    pub range: StatsRangeFields,
+    pub summary: StatsSummaryFields,
+    pub series: Vec<DailyStatsFields>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StatsRangeFields {
+    pub kind: String,
+    pub days: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StatsSummaryFields {
+    pub reviews: i64,
+    pub reviewed_today: i64,
+    pub good_or_easy_rate: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyStatsFields {
+    pub date: String,
+    pub reviews: i64,
+    pub again: i64,
+    pub hard: i64,
+    pub good: i64,
+    pub easy: i64,
+    pub good_or_easy_rate: Option<f64>,
+}
+
 impl DeckUseResponse {
     pub fn new(deck: &crate::deck::Deck) -> Self {
-        let display = deck.description.clone().unwrap_or_else(|| deck.name.clone());
+        let display = deck
+            .description
+            .clone()
+            .unwrap_or_else(|| deck.name.clone());
         Self {
             schema: DECK_USE_SCHEMA,
             name: deck.name.clone(),
             description: deck.description.clone(),
             message: format!("Active deck: {display}"),
+        }
+    }
+}
+
+impl StatusResponse {
+    pub fn new(deck: &Deck, progress: ProgressCounts, card_count: i64) -> Self {
+        let deck_fields = deck_fields(deck);
+        let mode = if card_count == 0 {
+            "empty"
+        } else if progress.due_count > 0 || progress.new_remaining > 0 {
+            "review"
+        } else {
+            "complete"
+        };
+        let deck_name = deck_fields.name.as_str();
+        let compact = if mode == "complete" {
+            format!("all caught up · {} done", progress.reviewed_today)
+        } else if mode == "empty" {
+            "no cards".to_string()
+        } else {
+            format!(
+                "{} due · {} new · {} done",
+                progress.due_count, progress.new_remaining, progress.reviewed_today
+            )
+        };
+        let plain = if mode == "complete" {
+            format!(
+                "{deck_name}: all caught up, {} reviewed today",
+                progress.reviewed_today
+            )
+        } else if mode == "empty" {
+            format!("{deck_name}: no cards")
+        } else {
+            format!(
+                "{deck_name}: {} due, {} new, {} reviewed today",
+                progress.due_count, progress.new_remaining, progress.reviewed_today
+            )
+        };
+        let statusline = format!("📚 {deck_name} · {compact}");
+        let command = format!("fishword current --deck {} --json", deck.name);
+        Self {
+            schema: STATUS_SCHEMA,
+            deck: deck_fields,
+            mode: mode.to_string(),
+            today: TodayStatusFields {
+                due: progress.due_count,
+                new_remaining: progress.new_remaining,
+                reviewed: progress.reviewed_today,
+            },
+            display: StatusDisplayFields {
+                plain,
+                compact,
+                statusline,
+            },
+            next_action: NextActionFields {
+                kind: if mode == "review" { "review" } else { "none" }.to_string(),
+                label: if mode == "review" { "Continue" } else { "Rest" }.to_string(),
+                command,
+            },
+        }
+    }
+}
+
+impl StatsResponse {
+    pub fn new(deck: &Deck, days: i64, buckets: Vec<DailyReviewBucket>) -> Self {
+        let today = Utc::now().date_naive();
+        let first_day = today - Duration::days(days.saturating_sub(1));
+        Self::new_for_range(deck, days, first_day, buckets)
+    }
+
+    fn new_for_range(
+        deck: &Deck,
+        days: i64,
+        first_day: NaiveDate,
+        buckets: Vec<DailyReviewBucket>,
+    ) -> Self {
+        let mut series = Vec::new();
+        for offset in 0..days {
+            let date = first_day + Duration::days(offset);
+            let date_string = date.to_string();
+            let stats = buckets
+                .iter()
+                .find(|bucket| bucket.date == date_string)
+                .map(|bucket| bucket.stats)
+                .unwrap_or(DailyReviewStats {
+                    reviews: 0,
+                    again: 0,
+                    hard: 0,
+                    good: 0,
+                    easy: 0,
+                });
+            series.push(DailyStatsFields {
+                date: date_string,
+                reviews: stats.reviews,
+                again: stats.again,
+                hard: stats.hard,
+                good: stats.good,
+                easy: stats.easy,
+                good_or_easy_rate: good_or_easy_rate(stats.good, stats.easy, stats.reviews),
+            });
+        }
+        let reviews = series.iter().map(|day| day.reviews).sum::<i64>();
+        let good = series.iter().map(|day| day.good).sum::<i64>();
+        let easy = series.iter().map(|day| day.easy).sum::<i64>();
+        let reviewed_today = series.last().map(|day| day.reviews).unwrap_or(0);
+        let rate = good_or_easy_rate(good, easy, reviews);
+        Self {
+            schema: STATS_SCHEMA,
+            deck: deck_fields(deck),
+            range: StatsRangeFields {
+                kind: "days".to_string(),
+                days,
+            },
+            summary: StatsSummaryFields {
+                reviews,
+                reviewed_today,
+                good_or_easy_rate: rate,
+            },
+            series,
         }
     }
 }
@@ -233,7 +422,8 @@ impl RateResponse {
                 difficulty: review.difficulty,
                 state: review.state.to_string(),
             },
-            next: next.map(|(selected, next_deck)| CardResponse::next(selected, next_deck, progress)),
+            next: next
+                .map(|(selected, next_deck)| CardResponse::next(selected, next_deck, progress)),
         }
     }
 }
@@ -271,19 +461,23 @@ fn protocol_card(card: &Card, deck: &Deck) -> ProtocolCard {
             .map(|meaning| meaning.definition.clone())
             .collect(),
         phonetic,
-        deck: DeckFields {
-            id: deck.name.clone(),
-            name: deck
-                .description
-                .clone()
-                .unwrap_or_else(|| deck.name.clone()),
-            db_id: deck.id,
-        },
+        deck: deck_fields(deck),
         tags: card.tags.clone(),
         source: card.source.as_ref().map(|source| SourceFields {
             name: source.name.clone(),
             license: source.license.clone(),
         }),
+    }
+}
+
+fn deck_fields(deck: &Deck) -> DeckFields {
+    DeckFields {
+        id: deck.name.clone(),
+        name: deck
+            .description
+            .clone()
+            .unwrap_or_else(|| deck.name.clone()),
+        db_id: deck.id,
     }
 }
 
@@ -381,6 +575,10 @@ fn selection_reason(reason: SelectionReason) -> &'static str {
         SelectionReason::New => "new",
         SelectionReason::Mature => "mature",
     }
+}
+
+fn good_or_easy_rate(good: i64, easy: i64, reviews: i64) -> Option<f64> {
+    (reviews > 0).then_some((good + easy) as f64 / reviews as f64)
 }
 
 #[cfg(test)]
@@ -517,6 +715,92 @@ mod tests {
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
             "../../fixtures/protocol_rate_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn status_response_serializes_stable_fields() {
+        let response = StatusResponse::new(
+            &sample_deck(),
+            ProgressCounts {
+                due_count: 12,
+                new_remaining: 8,
+                reviewed_today: 3,
+            },
+            120,
+        );
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_status_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn stats_response_serializes_stable_fields() {
+        let response = StatsResponse::new_for_range(
+            &sample_deck(),
+            7,
+            NaiveDate::from_ymd_opt(2026, 6, 4).unwrap(),
+            vec![
+                DailyReviewBucket {
+                    date: "2026-06-05".to_string(),
+                    stats: DailyReviewStats {
+                        reviews: 1,
+                        again: 1,
+                        hard: 0,
+                        good: 0,
+                        easy: 0,
+                    },
+                },
+                DailyReviewBucket {
+                    date: "2026-06-06".to_string(),
+                    stats: DailyReviewStats {
+                        reviews: 3,
+                        again: 0,
+                        hard: 1,
+                        good: 2,
+                        easy: 0,
+                    },
+                },
+                DailyReviewBucket {
+                    date: "2026-06-08".to_string(),
+                    stats: DailyReviewStats {
+                        reviews: 5,
+                        again: 0,
+                        hard: 0,
+                        good: 3,
+                        easy: 2,
+                    },
+                },
+                DailyReviewBucket {
+                    date: "2026-06-09".to_string(),
+                    stats: DailyReviewStats {
+                        reviews: 4,
+                        again: 1,
+                        hard: 1,
+                        good: 1,
+                        easy: 1,
+                    },
+                },
+                DailyReviewBucket {
+                    date: "2026-06-10".to_string(),
+                    stats: DailyReviewStats {
+                        reviews: 7,
+                        again: 1,
+                        hard: 1,
+                        good: 3,
+                        easy: 2,
+                    },
+                },
+            ],
+        );
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_stats_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);

@@ -1,0 +1,24 @@
+{
+  "schema": "fishword.protocol.status.v1",
+  "deck": {
+    "id": "cet4",
+    "name": "CET-4",
+    "db_id": 1
+  },
+  "mode": "review",
+  "today": {
+    "due": 12,
+    "new_remaining": 8,
+    "reviewed": 3
+  },
+  "display": {
+    "plain": "CET-4: 12 due, 8 new, 3 reviewed today",
+    "compact": "12 due · 8 new · 3 done",
+    "statusline": "📚 CET-4 · 12 due · 8 new · 3 done"
+  },
+  "next_action": {
+    "kind": "review",
+    "label": "Continue",
+    "command": "fishword current --deck cet4 --json"
+  }
+}

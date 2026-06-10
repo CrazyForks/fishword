@@ -6,7 +6,10 @@ use fishword_core::importer::{
     DuplicateStrategy, ImportDeck,
 };
 
-use crate::{args::{ImportArgs, ImportCmd}, util::open_storage};
+use crate::{
+    args::{ImportArgs, ImportCmd},
+    util::open_storage,
+};
 
 pub fn cmd_import(command: ImportCmd) -> Result<()> {
     let (args, deck) = match command {

@@ -117,12 +117,31 @@ fishword current --deck cet4 --json
 fishword rate good --deck cet4 --json
 ```
 
+## 状态与统计
+
+查看今日状态：
+
+```bash
+fishword status
+fishword status --format statusline
+fishword status --json
+```
+
+查看七日复习趋势：
+
+```bash
+fishword stats --range 7d
+fishword stats --range 7d --json
+```
+
 ## 输出格式
 
 前端集成应使用 JSON：
 
 ```bash
 fishword current --json
+fishword status --json
+fishword stats --range 7d --json
 ```
 
 人工查看可以使用 plain/compact/status：

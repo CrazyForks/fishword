@@ -43,7 +43,11 @@ fn cmd_deck_list(json: bool) -> Result<()> {
     for d in decks {
         println!(
             "{:<6}  {:<6}  {:<20}  {}",
-            if Some(d.id) == active_deck_id { "*" } else { "" },
+            if Some(d.id) == active_deck_id {
+                "*"
+            } else {
+                ""
+            },
             d.id,
             d.name,
             d.description.as_deref().unwrap_or("")

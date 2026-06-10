@@ -1,0 +1,82 @@
+{
+  "schema": "fishword.protocol.stats.v1",
+  "deck": {
+    "id": "cet4",
+    "name": "CET-4",
+    "db_id": 1
+  },
+  "range": {
+    "kind": "days",
+    "days": 7
+  },
+  "summary": {
+    "reviews": 20,
+    "reviewed_today": 7,
+    "good_or_easy_rate": 0.7
+  },
+  "series": [
+    {
+      "date": "2026-06-04",
+      "reviews": 0,
+      "again": 0,
+      "hard": 0,
+      "good": 0,
+      "easy": 0,
+      "good_or_easy_rate": null
+    },
+    {
+      "date": "2026-06-05",
+      "reviews": 1,
+      "again": 1,
+      "hard": 0,
+      "good": 0,
+      "easy": 0,
+      "good_or_easy_rate": 0.0
+    },
+    {
+      "date": "2026-06-06",
+      "reviews": 3,
+      "again": 0,
+      "hard": 1,
+      "good": 2,
+      "easy": 0,
+      "good_or_easy_rate": 0.6666666666666666
+    },
+    {
+      "date": "2026-06-07",
+      "reviews": 0,
+      "again": 0,
+      "hard": 0,
+      "good": 0,
+      "easy": 0,
+      "good_or_easy_rate": null
+    },
+    {
+      "date": "2026-06-08",
+      "reviews": 5,
+      "again": 0,
+      "hard": 0,
+      "good": 3,
+      "easy": 2,
+      "good_or_easy_rate": 1.0
+    },
+    {
+      "date": "2026-06-09",
+      "reviews": 4,
+      "again": 1,
+      "hard": 1,
+      "good": 1,
+      "easy": 1,
+      "good_or_easy_rate": 0.5
+    },
+    {
+      "date": "2026-06-10",
+      "reviews": 7,
+      "again": 1,
+      "hard": 1,
+      "good": 3,
+      "easy": 2,
+      "good_or_easy_rate": 0.7142857142857143
+    }
+  ]
+}

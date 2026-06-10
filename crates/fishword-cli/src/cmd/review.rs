@@ -1,13 +1,14 @@
 use anyhow::{Context, Result};
+use chrono::{Duration, Utc};
 use fishword_core::{
     card::Rating,
-    protocol::RateResponse,
+    protocol::{RateResponse, StatsResponse, StatusResponse},
     scheduler::Scheduler,
     selector::Selector,
 };
 
 use crate::{
-    args::{CardOutputArgs, RateArgs},
+    args::{CardOutputArgs, RateArgs, StatsArgs, StatusArgs},
     util::{exit_json_error, open_storage, print_json, print_selected_card, resolve_deck_scope},
 };
 
@@ -26,6 +27,88 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
         Some(selected) => print_selected_card(&storage, &selected, args, true)?,
         None if args.json => exit_json_error("no_cards", "No cards found. Import a deck first."),
         None => println!("No cards found. Import a deck first."),
+    }
+    Ok(())
+}
+
+pub fn cmd_status(args: &StatusArgs) -> Result<()> {
+    let storage = open_storage()?;
+    let Some(deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+        if args.json {
+            exit_json_error("no_cards", "No cards found. Import a deck first.");
+        }
+        println!("No cards found. Import a deck first.");
+        return Ok(());
+    };
+    let progress = storage
+        .progress_counts_by_deck(deck.id, 20)
+        .context("failed to read progress")?;
+    let card_count = storage
+        .card_count_by_deck(deck.id)
+        .context("failed to count cards")?;
+    let response = StatusResponse::new(&deck, progress, card_count);
+    if args.json {
+        print_json(&response)?;
+    } else {
+        match args.format.as_str() {
+            "plain" => println!("{}", response.display.plain),
+            "compact" => println!("{}", response.display.compact),
+            "statusline" => println!("{}", response.display.statusline),
+            other => anyhow::bail!(
+                "invalid --format '{}', expected plain/compact/statusline",
+                other
+            ),
+        }
+    }
+    Ok(())
+}
+
+pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
+    if args.range != "7d" {
+        if args.json {
+            exit_json_error("invalid_range", &format!("Invalid range: {}", args.range));
+        }
+        anyhow::bail!("invalid --range '{}', expected 7d", args.range);
+    }
+    let storage = open_storage()?;
+    let Some(deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+        if args.json {
+            exit_json_error("no_cards", "No cards found. Import a deck first.");
+        }
+        println!("No cards found. Import a deck first.");
+        return Ok(());
+    };
+    let today = Utc::now().date_naive();
+    let start = today - Duration::days(6);
+    let buckets = storage
+        .review_stats_by_deck_and_day_range(deck.id, &start.to_string(), &today.to_string())
+        .context("failed to read review stats")?;
+    let response = StatsResponse::new(&deck, 7, buckets);
+    if args.json {
+        print_json(&response)?;
+    } else {
+        println!("Today: {} reviews", response.summary.reviewed_today);
+        match response.summary.good_or_easy_rate {
+            Some(rate) => println!(
+                "7 days: {} reviews, {}% good/easy",
+                response.summary.reviews,
+                (rate * 100.0).round() as i64
+            ),
+            None => println!(
+                "7 days: {} reviews, no ratings yet",
+                response.summary.reviews
+            ),
+        }
+        println!(
+            "{:<12} {:>7} {:>7} {:>7} {:>7} {:>7}",
+            "DATE", "REVIEWS", "AGAIN", "HARD", "GOOD", "EASY"
+        );
+        for day in response.series {
+            println!(
+                "{:<12} {:>7} {:>7} {:>7} {:>7} {:>7}",
+                day.date, day.reviews, day.again, day.hard, day.good, day.easy
+            );
+        }
     }
     Ok(())
 }
@@ -87,8 +170,14 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
         let progress = storage
             .progress_counts_by_deck(scope_deck.id, 20)
             .context("failed to read progress")?;
-        let next_ref = next.as_ref().zip(next_deck.as_ref()).map(|(s, d)| (s, d));
-        print_json(&RateResponse::new(&card, &scope_deck, &review, progress, next_ref))?;
+        let next_ref = next.as_ref().zip(next_deck.as_ref());
+        print_json(&RateResponse::new(
+            &card,
+            &scope_deck,
+            &review,
+            progress,
+            next_ref,
+        ))?;
     } else {
         println!(
             "Rated {} as {}. due={} scheduled_days={}",
