@@ -1,94 +1,199 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { OverlayHandle } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fishwordPath } from "@fishword/cli";
 
 const execAsync = promisify(execFile);
 
+type Card = {
+  term: string;
+  phonetic?: { us?: string; uk?: string };
+  meanings: string[];
+  deck: { name: string };
+};
+
+type Rating = "again" | "hard" | "good" | "easy";
+
 async function runFishword(args: string[]): Promise<Record<string, unknown>> {
   try {
     const { stdout } = await execAsync(fishwordPath, args);
     return JSON.parse(stdout.trim()) as Record<string, unknown>;
   } catch (err: unknown) {
-    // exit code 2 → JSON error was printed to stdout before process.exit(2)
     const execErr = err as { stdout?: string };
     if (execErr.stdout) {
       try {
         return JSON.parse(execErr.stdout.trim()) as Record<string, unknown>;
-      } catch {
-        // stdout wasn't valid JSON; fall through and rethrow original error
-      }
+      } catch { /* fall through */ }
     }
     throw err;
   }
 }
 
-function formatCardStatus(res: Record<string, unknown>): string {
-  const card = res["card"] as {
-    term: string;
-    phonetic?: { us?: string; uk?: string };
-    meanings: string[];
-    deck: { name: string };
-  };
-
-  const term = card.term;
-
-  // Wrap phonetic in / / and strip any stray leading/trailing slashes from source data
-  const rawPhonetic = card.phonetic?.us || card.phonetic?.uk || "";
-  const phonetic = rawPhonetic ? `/${rawPhonetic.replace(/^\/|\/$/g, "")}/` : "";
-
-  // Collapse runs of whitespace inside the meaning string (source data has double spaces)
-  const meaning = (card.meanings[0] ?? "").replace(/\s+/g, " ").trim();
-
-  const deckName = card.deck.name;
-
-  const parts = [`📚 ${term}`];
-  if (phonetic) parts.push(phonetic);
-  if (meaning) parts.push(meaning);
-  parts.push(deckName);
-
-  return parts.join("  ·  ");
+function parseCard(res: Record<string, unknown>): Card {
+  return res["card"] as Card;
 }
 
-async function refreshStatus(ctx: ExtensionContext): Promise<void> {
-  try {
-    const res = await runFishword(["current", "--json"]);
-    if (res["schema"] === "fishword.protocol.error.v1") {
-      const errorCode = (res["error"] as { code?: string })?.code;
-      switch (errorCode) {
-        case "no_active_deck":
-          ctx.ui.setStatus("fishword", "📚 no active deck — /fd deck <name>");
-          break;
-        case "no_cards":
-          ctx.ui.setStatus("fishword", "📚 no cards");
-          break;
-        default:
-          ctx.ui.setStatus("fishword", undefined);
-      }
-    } else {
-      ctx.ui.setStatus("fishword", formatCardStatus(res));
-    }
-  } catch {
-    ctx.ui.setStatus("fishword", undefined);
-  }
+function formatPhonetic(card: Card): string {
+  const raw = card.phonetic?.us || card.phonetic?.uk || "";
+  return raw ? `/${raw.replace(/^\/|\/$/g, "")}/` : "";
+}
+
+function formatMeaning(card: Card): string {
+  return card.meanings
+    .map((m) => m.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("；");
 }
 
 export default function (pi: ExtensionAPI) {
+  let overlayHandle: OverlayHandle | null = null;
+  let ctx_ref: ExtensionContext | null = null;
+
+  function showCardOverlay(ctx: ExtensionContext, card: Card): void {
+    overlayHandle?.hide();
+    overlayHandle = null;
+
+    const term = card.term;
+    const phonetic = formatPhonetic(card);
+    const meaning = formatMeaning(card);
+
+    const plainLine1 = term + (phonetic ? "  " + phonetic : "");
+    const overlayWidth = Math.max(plainLine1.length, meaning.length) + 4;
+
+    void ctx.ui.custom(
+      (_tui, theme) => ({
+        render(width: number) {
+          const innerW = width - 2;
+          const l1 = theme.fg("accent", term) + (phonetic ? "  " + theme.fg("dim", phonetic) : "");
+          const title = ` ${card.deck.name} `;
+          const leftDashes = Math.max(0, innerW - visibleWidth(title) - 2);
+          const topBorder =
+            theme.fg("border", "╭" + "─".repeat(leftDashes)) +
+            theme.fg("accent", title) +
+            theme.fg("border", "──╮");
+          const row = (content: string) =>
+            theme.fg("border", "│") +
+            truncateToWidth(content, innerW, "...", true) +
+            theme.fg("border", "│");
+          return [
+            topBorder,
+            row(l1),
+            row(meaning),
+            theme.fg("border", `╰${"─".repeat(innerW)}╯`),
+          ];
+        },
+        invalidate() {},
+      }),
+      {
+        overlay: true,
+        overlayOptions: { anchor: "right-center", width: overlayWidth, margin: 1, offsetY: 5 },
+        onHandle: (handle) => {
+          handle.unfocus();
+          overlayHandle = handle;
+        },
+      },
+    );
+  }
+
+  async function refreshDisplay(ctx: ExtensionContext): Promise<void> {
+    ctx_ref = ctx;
+    try {
+      const res = await runFishword(["current", "--json"]);
+      if (res["schema"] === "fishword.protocol.error.v1") {
+        const code = (res["error"] as { code?: string })?.code;
+        overlayHandle?.hide();
+        overlayHandle = null;
+        ctx.ui.setStatus("fishword", code === "no_active_deck" ? "no active deck" : undefined);
+      } else {
+        ctx.ui.setStatus("fishword", undefined);
+        showCardOverlay(ctx, parseCard(res));
+      }
+    } catch {
+      overlayHandle?.hide();
+      overlayHandle = null;
+    }
+  }
+
+  async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
+    ctx_ref = ctx;
+    try {
+      // Rate current card
+      await runFishword(["rate", rating, "--json"]);
+      // Advance to next card and refresh overlay
+      const res = await runFishword(["next", "--json"]);
+      if (res["schema"] === "fishword.protocol.error.v1") {
+        const code = (res["error"] as { code?: string })?.code;
+        overlayHandle?.hide();
+        overlayHandle = null;
+        if (code === "no_cards") {
+          ctx.ui.setStatus("fishword", "🎉 all done for today!");
+        }
+      } else {
+        ctx.ui.setStatus("fishword", undefined);
+        showCardOverlay(ctx, parseCard(res));
+      }
+    } catch {
+      overlayHandle?.hide();
+      overlayHandle = null;
+    }
+  }
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   pi.on("session_start", async (_event, ctx) => {
-    await refreshStatus(ctx);
+    await refreshDisplay(ctx);
   });
 
+  // ── Slash commands ─────────────────────────────────────────────────────────
   pi.registerCommand("fd", {
-    description: "Fishword: show current vocab card in status bar",
-    handler: async (_args, ctx) => {
-      await refreshStatus(ctx);
-    },
+    description: "Fishword: show current vocab card",
+    handler: async (_args, ctx) => { await refreshDisplay(ctx); },
   });
 
-  pi.registerShortcut("ctrl+alt+v", {
-    description: "Fishword: refresh vocab status",
-    handler: async (ctx) => {
-      await refreshStatus(ctx);
-    },
+  pi.registerCommand("fw-again", {
+    description: "Fishword: rate again → next card",
+    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "again"); },
+  });
+
+  pi.registerCommand("fw-hard", {
+    description: "Fishword: rate hard → next card",
+    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "hard"); },
+  });
+
+  pi.registerCommand("fw-good", {
+    description: "Fishword: rate good → next card",
+    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "good"); },
+  });
+
+  pi.registerCommand("fw-easy", {
+    description: "Fishword: rate easy → next card",
+    handler: async (_args, ctx) => { await rateAndAdvance(ctx, "easy"); },
+  });
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  pi.registerShortcut("ctrl+shift+v", {
+    description: "Fishword: refresh vocab card",
+    handler: async (ctx) => { await refreshDisplay(ctx); },
+  });
+
+  pi.registerShortcut("ctrl+shift+a", {
+    description: "Fishword: rate again → next card",
+    handler: async (ctx) => { await rateAndAdvance(ctx, "again"); },
+  });
+
+  pi.registerShortcut("ctrl+shift+h", {
+    description: "Fishword: rate hard → next card",
+    handler: async (ctx) => { await rateAndAdvance(ctx, "hard"); },
+  });
+
+  pi.registerShortcut("ctrl+shift+g", {
+    description: "Fishword: rate good → next card",
+    handler: async (ctx) => { await rateAndAdvance(ctx, "good"); },
+  });
+
+  pi.registerShortcut("ctrl+shift+e", {
+    description: "Fishword: rate easy → next card",
+    handler: async (ctx) => { await rateAndAdvance(ctx, "easy"); },
   });
 }
