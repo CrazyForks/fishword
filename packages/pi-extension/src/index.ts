@@ -189,10 +189,14 @@ export default function (pi: ExtensionAPI) {
         label: d.name,
         description: d.description,
       }));
-      const overlayWidth = Math.max(...decks.map((d) => {
-        const label = d.description ? `${d.name}  ${d.description}` : d.name;
-        return visibleWidth(label);
-      })) + 6;
+      const hint = "Enter to confirm  Esc to cancel";
+      const overlayWidth = Math.max(
+        ...decks.map((d) => {
+          const label = d.description ? `${d.name}  ${d.description}` : d.name;
+          return visibleWidth(label);
+        }),
+        visibleWidth(hint),
+      ) + 4;
 
       void ctx.ui.custom(
         (_tui, theme) => {
@@ -220,10 +224,13 @@ export default function (pi: ExtensionAPI) {
               ctx.ui.notify(`Switched to: ${item.description ?? item.label}`, "info");
             }
           };
-          list.onCancel = () => { deckSelectorHandle?.hide(); deckSelectorHandle = null; };
+          list.onCancel = () => {
+            deckSelectorHandle?.hide();
+            deckSelectorHandle = null;
+            void refreshDisplay(ctx);
+          };
 
           // 包一层边框
-          const hint = "Enter to confirm  Esc to cancel";
           return {
             render(width: number) {
               const w = Math.min(width, overlayWidth);
