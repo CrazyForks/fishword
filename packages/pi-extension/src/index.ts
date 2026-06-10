@@ -156,11 +156,6 @@ export default function (pi: ExtensionAPI) {
   });
 
   // ── Slash commands ─────────────────────────────────────────────────────────
-  pi.registerCommand("fd", {
-    description: "Fishword: show current vocab card",
-    handler: async (_args, ctx) => { await refreshDisplay(ctx); },
-  });
-
   pi.registerCommand("fw-deck", {
     description: "Fishword: switch active deck — shows interactive selector",
     handler: async (_args, ctx) => {
