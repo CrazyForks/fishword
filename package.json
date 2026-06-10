@@ -1,0 +1,15 @@
+{
+  "name": "vocabber-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build:rust": "cargo build --workspace",
+    "dev:cli": "cargo build -p vocabbar-cli",
+    "test:rust": "cargo test",
+    "lint:rust": "cargo clippy --all-targets --all-features -- -D warnings",
+    "format:check": "cargo fmt --all -- --check",
+    "smoke:cli": "node scripts/smoke-cli.mjs",
+    "check": "pnpm format:check && pnpm lint:rust && pnpm test:rust && pnpm smoke:cli"
+  }
+}

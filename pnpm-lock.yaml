@@ -1,0 +1,43 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  packages/cli:
+    optionalDependencies:
+      '@vocabber/cli-darwin-arm64':
+        specifier: workspace:*
+        version: link:../cli-darwin-arm64
+      '@vocabber/cli-darwin-x64':
+        specifier: workspace:*
+        version: link:../cli-darwin-x64
+      '@vocabber/cli-linux-arm64':
+        specifier: workspace:*
+        version: link:../cli-linux-arm64
+      '@vocabber/cli-linux-x64':
+        specifier: workspace:*
+        version: link:../cli-linux-x64
+      '@vocabber/cli-win32-x64':
+        specifier: workspace:*
+        version: link:../cli-win32-x64
+
+  packages/cli-darwin-arm64: {}
+
+  packages/cli-darwin-x64: {}
+
+  packages/cli-linux-arm64: {}
+
+  packages/cli-linux-x64: {}
+
+  packages/cli-win32-x64: {}
+
+  packages/pi-extension:
+    dependencies:
+      '@vocabber/cli':
+        specifier: workspace:*
+        version: link:../cli
