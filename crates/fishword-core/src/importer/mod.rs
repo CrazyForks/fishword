@@ -92,6 +92,8 @@ struct DeckMeaningV1 {
     #[serde(default = "default_meaning_lang")]
     lang: String,
     text: String,
+    #[serde(default)]
+    example: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -339,7 +341,7 @@ fn deck_v1_to_import_card(card: DeckCardV1, deck_id: &str) -> Result<ImportCard>
         .map(|meaning| Meaning {
             part_of_speech: meaning.lang,
             definition: meaning.text,
-            example: None,
+            example: meaning.example,
         })
         .collect::<Vec<_>>();
     let mut pronunciations = Vec::new();
@@ -563,5 +565,51 @@ mod tests {
             .unwrap();
         assert_eq!(kept.inserted, 1);
         assert_eq!(storage.list_cards_by_deck("cet4").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn jsonl_example_field_is_parsed() {
+        let jsonl = r#"{"term":"absorb","meanings":[{"lang":"v","text":"吸收","example":"Plants absorb nutrients from the soil."}]}"#;
+        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
+        assert_eq!(deck.cards.len(), 1);
+        let meaning = &deck.cards[0].meanings[0];
+        assert_eq!(meaning.definition, "吸收");
+        assert_eq!(
+            meaning.example.as_deref(),
+            Some("Plants absorb nutrients from the soil.")
+        );
+    }
+
+    #[test]
+    fn jsonl_missing_example_is_none() {
+        let jsonl = r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#;
+        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
+        assert!(deck.cards[0].meanings[0].example.is_none());
+    }
+
+    #[test]
+    fn jsonl_multiple_meanings_example_per_meaning() {
+        let jsonl = r#"{"term":"access","meanings":[{"lang":"n","text":"入口","example":"The only access is across the bridge."},{"lang":"vt","text":"访问"}]}"#;
+        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
+        let meanings = &deck.cards[0].meanings;
+        assert_eq!(meanings[0].example.as_deref(), Some("The only access is across the bridge."));
+        assert!(meanings[1].example.is_none());
+    }
+
+    #[test]
+    fn example_persisted_and_retrieved_from_storage() {
+        let storage = open_temp();
+        let jsonl = r#"{"term":"absorb","meanings":[{"lang":"v","text":"吸收","example":"Plants absorb nutrients from the soil."}]}"#;
+        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
+        storage
+            .import_cards(&deck.deck_id, deck.deck_name.as_deref(), &deck.cards, DuplicateStrategy::Merge)
+            .unwrap();
+
+        let cards = storage.list_cards_by_deck("test").unwrap();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(
+            cards[0].meanings[0].example.as_deref(),
+            Some("Plants absorb nutrients from the soil.")
+        );
     }
 }

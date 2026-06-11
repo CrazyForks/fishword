@@ -199,7 +199,16 @@
         },
         "meanings": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["part_of_speech", "definition"],
+            "properties": {
+              "part_of_speech": { "type": "string" },
+              "definition": { "type": "string" },
+              "example": { "type": "string" }
+            }
+          }
         },
         "deck": {
           "type": "object",

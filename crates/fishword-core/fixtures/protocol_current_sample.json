@@ -10,13 +10,20 @@
       "uk": "'kænsl",
       "other": []
     },
-    "meanings": ["取消，撤销；删去"],
+    "meanings": [
+      {
+        "part_of_speech": "",
+        "definition": "取消，撤销；删去"
+      }
+    ],
     "deck": {
       "id": "cet4",
       "name": "CET-4",
       "db_id": 1
     },
-    "tags": ["cet4"],
+    "tags": [
+      "cet4"
+    ],
     "source": {
       "name": "qwerty-learner",
       "license": "GPL-3.0"

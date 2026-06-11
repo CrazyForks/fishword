@@ -359,10 +359,18 @@ pub struct ProtocolCard {
     pub term: String,
     pub language: String,
     pub phonetic: PhoneticFields,
-    pub meanings: Vec<String>,
+    pub meanings: Vec<MeaningFields>,
     pub deck: DeckFields,
     pub tags: Vec<String>,
     pub source: Option<SourceFields>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MeaningFields {
+    pub part_of_speech: String,
+    pub definition: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub example: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -503,7 +511,11 @@ fn protocol_card(card: &Card, deck: &Deck) -> ProtocolCard {
         meanings: card
             .meanings
             .iter()
-            .map(|meaning| meaning.definition.clone())
+            .map(|meaning| MeaningFields {
+                part_of_speech: meaning.part_of_speech.clone(),
+                definition: meaning.definition.clone(),
+                example: meaning.example.clone(),
+            })
             .collect(),
         phonetic,
         deck: deck_fields(deck),

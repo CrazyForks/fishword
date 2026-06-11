@@ -148,4 +148,21 @@ pnpm dev:cli
 
 ## 默认词库
 
-内置词库来源及许可证说明见 [assets/dicts/qwerty-learner/SOURCE.md](./assets/dicts/qwerty-learner/SOURCE.md)。
+### Qwerty Learner（通用词表）
+
+355 个英语词表，涵盖编程、教材、通用词汇等，来源及许可证见 [assets/dicts/qwerty-learner/SOURCE.md](./assets/dicts/qwerty-learner/SOURCE.md)。
+
+### kajweb/dict（考纲词表，含例句）
+
+8 个考纲词表，每个词条包含词性、中文释义和英文例句，来源见 [assets/dicts/kajweb/README.md](./assets/dicts/kajweb/README.md)。
+
+| 词书 | 词条数 | 导入命令 |
+|------|--------|----------|
+| CET-4 | 4,544 | `fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck cet4 --name "CET-4"` |
+| CET-6 | 3,992 | `fishword import jsonl assets/dicts/kajweb/cet6.jsonl --deck cet6 --name "CET-6"` |
+| 考研 | 5,057 | `fishword import jsonl assets/dicts/kajweb/kaoyan.jsonl --deck kaoyan --name "考研英语"` |
+| IELTS | 5,275 | `fishword import jsonl assets/dicts/kajweb/ielts.jsonl --deck ielts --name "IELTS"` |
+| TOEFL | 10,377 | `fishword import jsonl assets/dicts/kajweb/toefl.jsonl --deck toefl --name "TOEFL"` |
+| SAT | 4,464 | `fishword import jsonl assets/dicts/kajweb/sat.jsonl --deck sat --name "SAT"` |
+| GRE | 9,984 | `fishword import jsonl assets/dicts/kajweb/gre.jsonl --deck gre --name "GRE"` |
+| GMAT | 3,312 | `fishword import jsonl assets/dicts/kajweb/gmat.jsonl --deck gmat --name "GMAT"` |
