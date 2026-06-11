@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write  # npm provenance
+
+jobs:
+  # ── 1. 多平台编译 ─────────────────────────────────────────────
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-14
+            npm_pkg: cli-darwin-arm64
+            binary: fishword
+          - target: x86_64-apple-darwin
+            runner: macos-13
+            npm_pkg: cli-darwin-x64
+            binary: fishword
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            npm_pkg: cli-linux-x64
+            binary: fishword
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest
+            npm_pkg: cli-linux-arm64
+            binary: fishword
+            use_cross: true
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            npm_pkg: cli-win32-x64
+            binary: fishword.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install cross (Linux ARM64 only)
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (native)
+        if: ${{ !matrix.use_cross }}
+        run: cargo build -p fishword-cli --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        run: cross build -p fishword-cli --release --target ${{ matrix.target }}
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.npm_pkg }}
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}
+          if-no-files-found: error
+
+  # ── 2. 发布所有 npm 包 ────────────────────────────────────────
+  publish:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+      - name: Install dependencies
+        run: pnpm install
+
+      # 把每个平台的二进制放入对应平台包的 bin/
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Place binaries into platform packages
+        shell: bash
+        run: |
+          for pkg in cli-darwin-arm64 cli-darwin-x64 cli-linux-arm64 cli-linux-x64; do
+            mkdir -p packages/$pkg/bin
+            cp artifacts/$pkg/fishword packages/$pkg/bin/fishword
+            chmod +x packages/$pkg/bin/fishword
+          done
+          mkdir -p packages/cli-win32-x64/bin
+          cp artifacts/cli-win32-x64/fishword.exe packages/cli-win32-x64/bin/fishword.exe
+
+      # 发布平台包（顺序无所谓，主包依赖它们）
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in cli-darwin-arm64 cli-darwin-x64 cli-linux-arm64 cli-linux-x64 cli-win32-x64; do
+            cd packages/$pkg
+            npm publish --access public --provenance
+            cd ../..
+          done
+
+      # 发布主包
+      - name: Publish @fishword/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd packages/cli
+          npm publish --access public --provenance
+
+      # 编译 Pi extension TypeScript → dist/
+      - name: Build pi-extension
+        run: pnpm --filter @fishword/pi-extension run build
+
+      # 发布 Pi extension
+      - name: Publish @fishword/pi-extension
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd packages/pi-extension
+          npm publish --access public --provenance
