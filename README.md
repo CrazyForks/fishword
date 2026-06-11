@@ -11,7 +11,7 @@ Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/
 
 ## 当前集成：Pi 编程助手
 
-[观看 Pi 扩展演示视频](https://raw.githubusercontent.com/Chenggou1/fishword/main/docs/videos/pi-extension-demo.mp4)
+[观看 Pi 扩展演示视频](https://media.githubusercontent.com/media/Chenggou1/fishword/main/docs/videos/pi-extension-demo.mp4)
 
 ### 安装
 
