@@ -4,6 +4,7 @@
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
+      "tag-name": "v${version}",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
