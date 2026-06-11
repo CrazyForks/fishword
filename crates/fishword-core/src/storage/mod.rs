@@ -19,6 +19,7 @@ pub struct Storage {
 pub struct ProgressCounts {
     pub due_count: i64,
     pub new_remaining: i64,
+    pub new_reviewed_today: i64,
     pub reviewed_today: i64,
 }
 
@@ -572,6 +573,7 @@ impl Storage {
         Ok(ProgressCounts {
             due_count,
             new_remaining: new_quota_remaining.min(new_count),
+            new_reviewed_today,
             reviewed_today,
         })
     }

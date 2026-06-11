@@ -43,7 +43,7 @@ export function showStatsOverlay(ctx: ExtensionContext, options: StatsOverlayOpt
             `今日评分 ${stats.summary.reviewed_today} 次`,
             `7日评分 ${stats.summary.reviews} 次`,
             `Good+Easy ${formatPercent(stats.summary.good_or_easy_rate)}`,
-            `今日新词 ${status.today.new_remaining} 个`,
+            `今日新词 ${status.today.new_today} 个`,
           ].map((item) => fitCell(item, metricWidth)).join("");
           const chartLines = drawTrendLine(stats.series, frame, iw - 2);
           return [

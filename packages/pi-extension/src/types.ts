@@ -28,7 +28,7 @@ export type StatusResponse = {
   schema: "fishword.protocol.status.v1";
   deck: { id: string; name: string; db_id: number };
   mode: "review" | "complete" | "empty";
-  today: { due: number; new_remaining: number; reviewed: number };
+  today: { due: number; new_remaining: number; new_today: number; reviewed: number };
   display: { plain: string; compact: string; statusline: string };
   next_action: { kind: "review" | "none"; label: string; command: string };
 };

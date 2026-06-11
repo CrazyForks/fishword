@@ -9,6 +9,7 @@
   "today": {
     "due": 12,
     "new_remaining": 8,
+    "new_today": 5,
     "reviewed": 3
   },
   "display": {

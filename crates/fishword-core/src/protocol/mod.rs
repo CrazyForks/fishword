@@ -148,6 +148,7 @@ pub struct StatusResponse {
 pub struct TodayStatusFields {
     pub due: i64,
     pub new_remaining: i64,
+    pub new_today: i64,
     pub reviewed: i64,
 }
 
@@ -322,6 +323,7 @@ impl StatusResponse {
             today: TodayStatusFields {
                 due: progress.due_count,
                 new_remaining: progress.new_remaining,
+                new_today: progress.new_reviewed_today,
                 reviewed: progress.reviewed_today,
             },
             display: StatusDisplayFields {
@@ -773,6 +775,7 @@ mod tests {
             ProgressCounts {
                 due_count: 1,
                 new_remaining: 8,
+                new_reviewed_today: 2,
                 reviewed_today: 5,
             },
         );
@@ -851,6 +854,7 @@ mod tests {
             ProgressCounts {
                 due_count: 0,
                 new_remaining: 19,
+                new_reviewed_today: 1,
                 reviewed_today: 1,
             },
             None,
@@ -870,6 +874,7 @@ mod tests {
             ProgressCounts {
                 due_count: 12,
                 new_remaining: 8,
+                new_reviewed_today: 5,
                 reviewed_today: 3,
             },
             120,
