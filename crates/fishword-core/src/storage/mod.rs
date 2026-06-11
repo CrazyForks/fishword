@@ -105,10 +105,18 @@ impl Storage {
     }
 
     pub fn insert_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
-        self.conn.execute(
+        match self.conn.execute(
             "INSERT INTO decks (name, description) VALUES (?1, ?2)",
             params![name, description],
-        )?;
+        ) {
+            Ok(_) => {}
+            Err(rusqlite::Error::SqliteFailure(err, _))
+                if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                return Err(Error::AlreadyExists(format!("deck already exists: {name}")));
+            }
+            Err(e) => return Err(Error::Db(e)),
+        }
         let id = self.conn.last_insert_rowid();
         let deck = self.conn.query_row(
             "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
@@ -165,7 +173,41 @@ impl Storage {
         }
     }
 
-    pub fn ensure_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
+    pub fn delete_deck(&self, id: i64) -> Result<Deck> {
+        let deck = self
+            .get_deck_by_id(id)?
+            .ok_or_else(|| Error::NotFound(format!("deck id {id}")))?;
+        if self.get_active_deck_id()? == Some(id) {
+            self.set_active_deck_id(None)?;
+        }
+        self.conn
+            .execute("DELETE FROM decks WHERE id = ?1", params![id])?;
+        Ok(deck)
+    }
+
+    pub fn update_deck_name(&self, id: i64, new_name: &str) -> Result<Deck> {
+        self.get_deck_by_id(id)?
+            .ok_or_else(|| Error::NotFound(format!("deck id {id}")))?;
+        match self.conn.execute(
+            "UPDATE decks SET name = ?1 WHERE id = ?2",
+            params![new_name, id],
+        ) {
+            Ok(_) => {}
+            Err(rusqlite::Error::SqliteFailure(err, _))
+                if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                return Err(Error::AlreadyExists(format!(
+                    "deck already exists: {new_name}"
+                )));
+            }
+            Err(e) => return Err(Error::Db(e)),
+        }
+        self.get_deck_by_id(id)?
+            .ok_or_else(|| Error::NotFound(format!("deck id {id}")))
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn ensure_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
         if let Some(deck) = self.get_deck_by_name(name)? {
             if deck.description.is_none() && description.is_some() {
                 self.conn.execute(
@@ -317,12 +359,13 @@ impl Storage {
 
     pub fn import_cards(
         &self,
-        deck_name: &str,
-        deck_description: Option<&str>,
+        deck_id: i64,
         cards: &[ImportCard],
         duplicate_strategy: DuplicateStrategy,
     ) -> Result<ImportSummary> {
-        let deck = self.ensure_deck(deck_name, deck_description)?;
+        let deck = self
+            .get_deck_by_id(deck_id)?
+            .ok_or_else(|| Error::NotFound(format!("deck id {deck_id}")))?;
         let mut summary = ImportSummary {
             deck_id: deck.id,
             deck_name: deck.name,

@@ -17,6 +17,9 @@ pub enum Error {
     #[error("not found: {0}")]
     NotFound(String),
 
+    #[error("already exists: {0}")]
+    AlreadyExists(String),
+
     #[error("invalid input: {0}")]
     InvalidInput(String),
 

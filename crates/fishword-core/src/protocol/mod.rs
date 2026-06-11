@@ -15,6 +15,9 @@ pub const RATE_SCHEMA: &str = "fishword.protocol.rate.v1";
 pub const ERROR_SCHEMA: &str = "fishword.protocol.error.v1";
 pub const DECKS_SCHEMA: &str = "fishword.protocol.decks.v1";
 pub const DECK_USE_SCHEMA: &str = "fishword.protocol.deck_use.v1";
+pub const DECK_CREATE_SCHEMA: &str = "fishword.protocol.deck_create.v1";
+pub const DECK_DELETE_SCHEMA: &str = "fishword.protocol.deck_delete.v1";
+pub const DECK_RENAME_SCHEMA: &str = "fishword.protocol.deck_rename.v1";
 pub const STATUS_SCHEMA: &str = "fishword.protocol.status.v1";
 pub const STATS_SCHEMA: &str = "fishword.protocol.stats.v1";
 pub const CARD_LIST_SCHEMA: &str = "fishword.protocol.card_list.v1";
@@ -79,6 +82,38 @@ pub struct DeckUseResponse {
     pub name: String,
     pub description: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckMutationFields {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckCreateResponse {
+    pub schema: &'static str,
+    pub deck: DeckMutationFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckDeleteResponse {
+    pub schema: &'static str,
+    pub deleted: DeckDeletedFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckDeletedFields {
+    pub id: i64,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeckRenameResponse {
+    pub schema: &'static str,
+    pub deck: DeckMutationFields,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -178,6 +213,46 @@ impl DeckUseResponse {
     }
 }
 
+impl DeckCreateResponse {
+    pub fn new(deck: &Deck) -> Self {
+        Self {
+            schema: DECK_CREATE_SCHEMA,
+            deck: DeckMutationFields {
+                id: deck.id,
+                name: deck.name.clone(),
+                description: deck.description.clone(),
+                created_at: deck.created_at.clone(),
+            },
+        }
+    }
+}
+
+impl DeckDeleteResponse {
+    pub fn new(deck: &Deck) -> Self {
+        Self {
+            schema: DECK_DELETE_SCHEMA,
+            deleted: DeckDeletedFields {
+                id: deck.id,
+                name: deck.name.clone(),
+            },
+        }
+    }
+}
+
+impl DeckRenameResponse {
+    pub fn new(deck: &Deck) -> Self {
+        Self {
+            schema: DECK_RENAME_SCHEMA,
+            deck: DeckMutationFields {
+                id: deck.id,
+                name: deck.name.clone(),
+                description: deck.description.clone(),
+                created_at: deck.created_at.clone(),
+            },
+        }
+    }
+}
+
 impl CardListResponse {
     pub fn new(deck: &Deck, cards: Vec<Card>, page: i64, page_size: i64, total: i64) -> Self {
         let page_count = if total == 0 {
@@ -239,7 +314,7 @@ impl StatusResponse {
             )
         };
         let statusline = format!("📚 {deck_name} · {compact}");
-        let command = format!("fishword current --deck {} --json", deck.name);
+        let command = format!("fishword current --deck {} --json", deck.id);
         Self {
             schema: STATUS_SCHEMA,
             deck: deck_fields,

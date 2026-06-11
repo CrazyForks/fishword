@@ -14,7 +14,7 @@ use crate::{
 
 pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
             exit_json_error("no_cards", "No cards found. Import a deck first.");
         }
@@ -33,7 +33,7 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
 
 pub fn cmd_status(args: &StatusArgs) -> Result<()> {
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
             exit_json_error("no_cards", "No cards found. Import a deck first.");
         }
@@ -71,7 +71,7 @@ pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
         anyhow::bail!("invalid --range '{}', expected 7d", args.range);
     }
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
             exit_json_error("no_cards", "No cards found. Import a deck first.");
         }
@@ -125,7 +125,7 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
             )
         })?;
     let storage = open_storage()?;
-    let Some(scope_deck) = resolve_deck_scope(&storage, args.deck.as_deref(), args.json)? else {
+    let Some(scope_deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
             exit_json_error("no_cards", "No cards found. Import a deck first.");
         }

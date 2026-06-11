@@ -19,6 +19,6 @@
   "next_action": {
     "kind": "review",
     "label": "Continue",
-    "command": "fishword current --deck cet4 --json"
+    "command": "fishword current --deck 1 --json"
   }
 }

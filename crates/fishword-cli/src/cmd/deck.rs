@@ -1,6 +1,10 @@
 use anyhow::{Context, Result};
 use fishword_core::{
-    protocol::{CardListResponse, DeckListResponse, DeckUseResponse},
+    error::Error as CoreError,
+    protocol::{
+        CardListResponse, DeckCreateResponse, DeckDeleteResponse, DeckListResponse,
+        DeckRenameResponse, DeckUseResponse,
+    },
     storage::Storage,
 };
 
@@ -20,7 +24,12 @@ pub fn cmd_init() -> Result<()> {
 pub fn cmd_deck(sub: DeckCmd) -> Result<()> {
     match sub {
         DeckCmd::List { json } => cmd_deck_list(json),
-        DeckCmd::Use { deck, json } => cmd_deck_use(&deck, json),
+        DeckCmd::Create { name, description, json } => {
+            cmd_deck_create(&name, description.as_deref(), json)
+        }
+        DeckCmd::Use { deck, json } => cmd_deck_use(deck, json),
+        DeckCmd::Delete { id, json } => cmd_deck_delete(id, json),
+        DeckCmd::Rename { id, new_name, json } => cmd_deck_rename(id, &new_name, json),
         DeckCmd::Current => cmd_deck_current(),
     }
 }
@@ -56,21 +65,45 @@ fn cmd_deck_list(json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_use(deck_name: &str, json: bool) -> Result<()> {
+fn cmd_deck_create(name: &str, description: Option<&str>, json: bool) -> Result<()> {
+    let storage = open_storage()?;
+    match storage.insert_deck(name, description) {
+        Ok(deck) => {
+            if json {
+                print_json(&DeckCreateResponse::new(&deck))?;
+            } else {
+                println!("Created deck: {} (id={})", deck.name, deck.id);
+            }
+        }
+        Err(CoreError::AlreadyExists(_)) if json => {
+            exit_json_error(
+                "deck_already_exists",
+                &format!("Deck already exists: {name}"),
+            );
+        }
+        Err(CoreError::AlreadyExists(_)) => {
+            anyhow::bail!("Deck already exists: {name}");
+        }
+        Err(e) => return Err(anyhow::anyhow!(e)),
+    }
+    Ok(())
+}
+
+fn cmd_deck_use(deck_id: i64, json: bool) -> Result<()> {
     let storage = open_storage()?;
     let deck = match storage
-        .get_deck_by_name(deck_name)
-        .with_context(|| format!("failed to read deck '{deck_name}'"))?
+        .get_deck_by_id(deck_id)
+        .with_context(|| format!("failed to read deck {deck_id}"))?
     {
         Some(d) => d,
         None if json => {
-            exit_json_error("deck_not_found", &format!("Deck not found: {deck_name}"));
+            exit_json_error("deck_not_found", &format!("Deck not found: {deck_id}"));
         }
-        None => anyhow::bail!("deck not found: {deck_name}"),
+        None => anyhow::bail!("deck not found: {deck_id}"),
     };
     storage
         .set_active_deck_id(Some(deck.id))
-        .with_context(|| format!("failed to set active deck '{deck_name}'"))?;
+        .with_context(|| format!("failed to set active deck {deck_id}"))?;
     storage
         .set_current_card_id(None)
         .with_context(|| "failed to clear current card on deck switch")?;
@@ -78,6 +111,57 @@ fn cmd_deck_use(deck_name: &str, json: bool) -> Result<()> {
         print_json(&DeckUseResponse::new(&deck))?;
     } else {
         println!("Active deck: {} ({})", deck.name, deck.id);
+    }
+    Ok(())
+}
+
+fn cmd_deck_delete(id: i64, json: bool) -> Result<()> {
+    let storage = open_storage()?;
+    match storage.delete_deck(id) {
+        Ok(deck) => {
+            if json {
+                print_json(&DeckDeleteResponse::new(&deck))?;
+            } else {
+                println!("Deleted deck: {} (id={})", deck.name, deck.id);
+            }
+        }
+        Err(CoreError::NotFound(_)) if json => {
+            exit_json_error("deck_not_found", &format!("Deck not found: {id}"));
+        }
+        Err(CoreError::NotFound(_)) => {
+            anyhow::bail!("Deck not found: {id}");
+        }
+        Err(e) => return Err(anyhow::anyhow!(e)),
+    }
+    Ok(())
+}
+
+fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
+    let storage = open_storage()?;
+    match storage.update_deck_name(id, new_name) {
+        Ok(deck) => {
+            if json {
+                print_json(&DeckRenameResponse::new(&deck))?;
+            } else {
+                println!("Renamed deck {} to: {}", id, deck.name);
+            }
+        }
+        Err(CoreError::NotFound(_)) if json => {
+            exit_json_error("deck_not_found", &format!("Deck not found: {id}"));
+        }
+        Err(CoreError::NotFound(_)) => {
+            anyhow::bail!("Deck not found: {id}");
+        }
+        Err(CoreError::AlreadyExists(_)) if json => {
+            exit_json_error(
+                "deck_already_exists",
+                &format!("Deck already exists: {new_name}"),
+            );
+        }
+        Err(CoreError::AlreadyExists(_)) => {
+            anyhow::bail!("Deck already exists: {new_name}");
+        }
+        Err(e) => return Err(anyhow::anyhow!(e)),
     }
     Ok(())
 }
@@ -117,8 +201,8 @@ pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
     }
     let storage = open_storage()?;
     let deck = match storage
-        .get_deck_by_name(&args.deck)
-        .with_context(|| format!("failed to read deck '{}'", args.deck))?
+        .get_deck_by_id(args.deck)
+        .with_context(|| format!("failed to read deck {}", args.deck))?
     {
         Some(deck) => deck,
         None if args.json => {

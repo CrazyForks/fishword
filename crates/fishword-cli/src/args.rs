@@ -46,10 +46,39 @@ pub enum DeckCmd {
         #[arg(long)]
         json: bool,
     },
-    /// Set the active deck used by current/next/rate.
-    Use {
+    /// Create a new deck.
+    Create {
         /// Deck name (e.g. cet4)
-        deck: String,
+        name: String,
+        /// Human-readable description.
+        #[arg(long)]
+        description: Option<String>,
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Set the active deck by id.
+    Use {
+        /// Deck id (numeric, from `deck list`)
+        deck: i64,
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a deck and all its cards.
+    Delete {
+        /// Deck id
+        id: i64,
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Rename a deck.
+    Rename {
+        /// Deck id
+        id: i64,
+        /// New name
+        new_name: String,
         /// Emit stable JSON protocol output.
         #[arg(long)]
         json: bool,
@@ -80,12 +109,9 @@ pub enum ImportCmd {
 pub struct ImportArgs {
     /// Input file path.
     pub path: PathBuf,
-    /// Deck id/name used by the local database.
+    /// Deck id (numeric, from `deck list`). Deck must already exist.
     #[arg(long)]
-    pub deck: String,
-    /// Human-readable deck name/description.
-    #[arg(long)]
-    pub name: Option<String>,
+    pub deck: i64,
     /// Duplicate strategy: merge, skip, overwrite, keep.
     #[arg(long, default_value = "merge")]
     pub duplicates: String,
@@ -93,9 +119,9 @@ pub struct ImportArgs {
 
 #[derive(Parser)]
 pub struct CardListArgs {
-    /// Deck name (e.g. cet4)
+    /// Deck id (numeric, from `deck list`)
     #[arg(long)]
-    pub deck: String,
+    pub deck: i64,
     /// Page number, starting from 1.
     #[arg(long, default_value_t = 1)]
     pub page: i64,
@@ -112,9 +138,9 @@ pub struct CardOutputArgs {
     /// Emit stable JSON protocol output.
     #[arg(long)]
     pub json: bool,
-    /// Deck name used as this command's learning scope.
+    /// Deck id used as this command's learning scope (optional, defaults to active deck).
     #[arg(long)]
-    pub deck: Option<String>,
+    pub deck: Option<i64>,
     /// Human-readable output format: plain, compact, status.
     #[arg(long, default_value = "plain")]
     pub format: String,
@@ -125,9 +151,9 @@ pub struct StatusArgs {
     /// Emit stable JSON protocol output.
     #[arg(long)]
     pub json: bool,
-    /// Deck name used as this command's learning scope.
+    /// Deck id used as this command's learning scope (optional, defaults to active deck).
     #[arg(long)]
-    pub deck: Option<String>,
+    pub deck: Option<i64>,
     /// Human-readable output format: plain, compact, statusline.
     #[arg(long, default_value = "plain")]
     pub format: String,
@@ -138,9 +164,9 @@ pub struct StatsArgs {
     /// Emit stable JSON protocol output.
     #[arg(long)]
     pub json: bool,
-    /// Deck name used as this command's learning scope.
+    /// Deck id used as this command's learning scope (optional, defaults to active deck).
     #[arg(long)]
-    pub deck: Option<String>,
+    pub deck: Option<i64>,
     /// Time range. The first implementation supports 7d.
     #[arg(long, default_value = "7d")]
     pub range: String,
@@ -150,9 +176,9 @@ pub struct StatsArgs {
 pub struct RateArgs {
     /// Review rating: again, hard, good, easy.
     pub rating: String,
-    /// Deck name used as this command's learning scope.
+    /// Deck id used as this command's learning scope (optional, defaults to active deck).
     #[arg(long)]
-    pub deck: Option<String>,
+    pub deck: Option<i64>,
     /// Emit stable JSON protocol output.
     #[arg(long)]
     pub json: bool,

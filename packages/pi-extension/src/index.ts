@@ -203,7 +203,7 @@ export default function (pi: ExtensionAPI) {
       },
       onSelect: async (deck) => {
         hideDeckSelector();
-        const res = await runFishword(["deck", "use", deck.name, "--json"]);
+        const res = await runFishword(["deck", "use", String(deck.id), "--json"]);
         if (isErrorResponse(res)) {
           ctx.ui.notify(`Failed: ${getErrorCode(res) ?? "unknown error"}`, "error");
         } else {

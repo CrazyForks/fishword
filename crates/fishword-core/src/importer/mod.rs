@@ -487,40 +487,29 @@ mod tests {
     #[test]
     fn duplicate_skip_and_merge_work_in_storage() {
         let storage = open_temp();
-        let initial = import_csv_str("word,meaning\ncancel,取消\n", "cet4", Some("CET-4")).unwrap();
+        let deck = storage.insert_deck("cet4", Some("CET-4")).unwrap();
+        let initial = import_csv_str("word,meaning\ncancel,取消\n", "cet4", None).unwrap();
         let summary = storage
-            .import_cards(
-                &initial.deck_id,
-                initial.deck_name.as_deref(),
-                &initial.cards,
-                DuplicateStrategy::Merge,
-            )
+            .import_cards(deck.id, &initial.cards, DuplicateStrategy::Merge)
             .unwrap();
         assert_eq!(summary.inserted, 1);
 
         let duplicate =
             import_csv_str("word,meaning,tags\ncancel,撤销,review\n", "cet4", None).unwrap();
         let skipped = storage
-            .import_cards(
-                &duplicate.deck_id,
-                duplicate.deck_name.as_deref(),
-                &duplicate.cards,
-                DuplicateStrategy::Skip,
-            )
+            .import_cards(deck.id, &duplicate.cards, DuplicateStrategy::Skip)
             .unwrap();
         assert_eq!(skipped.skipped, 1);
-        assert_eq!(storage.list_cards_by_deck("cet4").unwrap().len(), 1);
+        assert_eq!(
+            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap().len(),
+            1
+        );
 
         let merged = storage
-            .import_cards(
-                &duplicate.deck_id,
-                duplicate.deck_name.as_deref(),
-                &duplicate.cards,
-                DuplicateStrategy::Merge,
-            )
+            .import_cards(deck.id, &duplicate.cards, DuplicateStrategy::Merge)
             .unwrap();
         assert_eq!(merged.merged, 1);
-        let cards = storage.list_cards_by_deck("cet4").unwrap();
+        let cards = storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].meanings.len(), 2);
         assert!(cards[0].tags.iter().any(|tag| tag == "review"));
@@ -529,42 +518,31 @@ mod tests {
     #[test]
     fn duplicate_overwrite_and_keep_work_in_storage() {
         let storage = open_temp();
-        let initial = import_csv_str("word,meaning\ncancel,取消\n", "cet4", Some("CET-4")).unwrap();
+        let deck = storage.insert_deck("cet4", Some("CET-4")).unwrap();
+        let initial = import_csv_str("word,meaning\ncancel,取消\n", "cet4", None).unwrap();
         storage
-            .import_cards(
-                &initial.deck_id,
-                initial.deck_name.as_deref(),
-                &initial.cards,
-                DuplicateStrategy::Merge,
-            )
+            .import_cards(deck.id, &initial.cards, DuplicateStrategy::Merge)
             .unwrap();
 
-        let replacement =
-            import_csv_str("word,meaning\ncancel,撤销\n", "cet4", Some("CET-4")).unwrap();
+        let replacement = import_csv_str("word,meaning\ncancel,撤销\n", "cet4", None).unwrap();
         let overwritten = storage
-            .import_cards(
-                &replacement.deck_id,
-                replacement.deck_name.as_deref(),
-                &replacement.cards,
-                DuplicateStrategy::Overwrite,
-            )
+            .import_cards(deck.id, &replacement.cards, DuplicateStrategy::Overwrite)
             .unwrap();
         assert_eq!(overwritten.updated, 1);
         assert_eq!(
-            storage.list_cards_by_deck("cet4").unwrap()[0].meanings[0].definition,
+            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap()[0].meanings[0]
+                .definition,
             "撤销"
         );
 
         let kept = storage
-            .import_cards(
-                &replacement.deck_id,
-                replacement.deck_name.as_deref(),
-                &replacement.cards,
-                DuplicateStrategy::Keep,
-            )
+            .import_cards(deck.id, &replacement.cards, DuplicateStrategy::Keep)
             .unwrap();
         assert_eq!(kept.inserted, 1);
-        assert_eq!(storage.list_cards_by_deck("cet4").unwrap().len(), 2);
+        assert_eq!(
+            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap().len(),
+            2
+        );
     }
 
     #[test]
@@ -599,13 +577,14 @@ mod tests {
     #[test]
     fn example_persisted_and_retrieved_from_storage() {
         let storage = open_temp();
+        let db_deck = storage.insert_deck("test", None).unwrap();
         let jsonl = r#"{"term":"absorb","meanings":[{"lang":"v","text":"吸收","example":"Plants absorb nutrients from the soil."}]}"#;
-        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
+        let parsed = import_jsonl_str(jsonl, "test", None).unwrap();
         storage
-            .import_cards(&deck.deck_id, deck.deck_name.as_deref(), &deck.cards, DuplicateStrategy::Merge)
+            .import_cards(db_deck.id, &parsed.cards, DuplicateStrategy::Merge)
             .unwrap();
 
-        let cards = storage.list_cards_by_deck("test").unwrap();
+        let cards = storage.list_cards_by_deck_paginated(db_deck.id, 100, 0).unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(
             cards[0].meanings[0].example.as_deref(),

@@ -15,19 +15,19 @@ pub fn open_storage() -> Result<Storage> {
 
 pub fn resolve_deck_scope(
     storage: &Storage,
-    deck_name: Option<&str>,
+    deck_id: Option<i64>,
     json_errors: bool,
 ) -> Result<Option<Deck>> {
-    if let Some(deck_name) = deck_name {
+    if let Some(deck_id) = deck_id {
         return match storage
-            .get_deck_by_name(deck_name)
-            .with_context(|| format!("failed to read deck '{deck_name}'"))?
+            .get_deck_by_id(deck_id)
+            .with_context(|| format!("failed to read deck {deck_id}"))?
         {
             Some(deck) => Ok(Some(deck)),
             None if json_errors => {
-                exit_json_error("deck_not_found", &format!("Deck not found: {deck_name}"));
+                exit_json_error("deck_not_found", &format!("Deck not found: {deck_id}"));
             }
-            None => anyhow::bail!("Deck not found: {deck_name}"),
+            None => anyhow::bail!("Deck not found: {deck_id}"),
         };
     }
 

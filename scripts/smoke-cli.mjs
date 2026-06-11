@@ -37,14 +37,20 @@ function run(args, options = {}) {
 
 try {
   run(["init"]);
+
+  // M12: deck must be created explicitly before import
+  const created = run(["deck", "create", "smoke", "--description", "Smoke test deck", "--json"], { json: true });
+  if (created.schema !== "fishword.protocol.deck_create.v1") {
+    throw new Error(`deck create returned unexpected schema: ${created.schema}`);
+  }
+  const deckId = created.deck.id;
+
   run([
     "import",
     "qwerty",
     "crates/fishword-core/fixtures/qwerty_cet4_sample.json",
     "--deck",
-    "smoke",
-    "--name",
-    "Smoke"
+    String(deckId),
   ]);
 
   const activeDeck = run(["deck", "current"]);
@@ -52,19 +58,41 @@ try {
     throw new Error("deck current did not show the imported smoke deck");
   }
 
-  run(["deck", "use", "smoke"]);
+  // deck use now takes id
+  run(["deck", "use", String(deckId)]);
 
   const current = run(["current", "--json"], { json: true });
   if (!current.card?.term) {
     throw new Error("current --json did not return a card term");
   }
 
-  const rated = run(["rate", "good", "--deck", "smoke", "--json"], { json: true });
+  const rated = run(["rate", "good", "--deck", String(deckId), "--json"], { json: true });
   if (rated.review?.rating !== "good") {
     throw new Error("rate good --json did not return a good review");
   }
   if (!("next" in rated)) {
     throw new Error("rate --json did not include a next field");
+  }
+
+  // deck rename
+  const renamed = run(["deck", "rename", String(deckId), "smoke-renamed", "--json"], { json: true });
+  if (renamed.deck?.name !== "smoke-renamed") {
+    throw new Error(`deck rename failed: ${JSON.stringify(renamed)}`);
+  }
+  if (renamed.deck?.id !== deckId) {
+    throw new Error("deck rename changed the id");
+  }
+
+  // deck delete
+  const deleted = run(["deck", "delete", String(deckId), "--json"], { json: true });
+  if (deleted.deleted?.id !== deckId) {
+    throw new Error(`deck delete returned unexpected id: ${JSON.stringify(deleted)}`);
+  }
+
+  // verify deck is gone
+  const listAfter = run(["deck", "list", "--json"], { json: true });
+  if (listAfter.decks.some((d) => d.id === deckId)) {
+    throw new Error("deleted deck still appears in deck list");
   }
 
   console.log(`smoke:cli ok (${current.card.term})`);
