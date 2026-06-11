@@ -1,168 +1,79 @@
 # Fishword
 
-Fishword 是一个本地词汇学习项目。当前核心是 Rust CLI，负责词库导入、SQLite 存储、FSRS 复习调度和稳定 JSON 协议。
+> 本地优先的间隔重复词汇学习工具，CLI 驱动，可嵌入任意开发环境。
 
-## 文档
+[![npm](https://img.shields.io/npm/v/@fishword/pi-extension)](https://www.npmjs.com/package/@fishword/pi-extension)
+[![license](https://img.shields.io/badge/license-GPL--3.0--only-blue)](#许可证)
 
-- 当前开发流程：[docs/development.md](./docs/development.md)
-- 用户使用说明草案：[docs/usage.md](./docs/usage.md)
+Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm) 算法调度复习，数据完全存储在本地 SQLite，无需联网。你可以通过 CLI 直接使用，也可以通过集成接入到你的开发环境中。
+
+---
+
+## 当前集成：Pi 编程助手
 
 
-## 开发环境
+### 安装
 
-本项目使用 pnpm 管理 JS/Pi workspace
-
-安装 workspace：
-
-```bash
-pnpm install
+```
+pi install @fishword/pi-extension
 ```
 
-## CLI 开发流程
+重启 Pi 后，扩展自动完成初始化——创建并导入三个内置词库：
 
-日常开发 Rust CLI 时，先构建 debug 版本：
+| 词库 | 词条数 |
+|------|--------|
+| CET-4 | 4,544 |
+| CET-6 | 3,992 |
+| TOEFL | 10,377 |
 
-```bash
-pnpm dev:cli
-```
+默认激活 CET-4，无需任何配置，打开 Pi 即可开始复习。
 
-这会生成：
+### 复习单词
 
-```text
-target/debug/fishword
-```
+![词卡界面](docs/images/screenshot-card.png)
 
-然后跑 CLI 冒烟测试：
 
-```bash
-pnpm smoke:cli
-```
+按 **`Ctrl+Shift+V`** 显示当前词卡，然后用快捷键评分：
 
-`smoke:cli` 会使用临时 `HOME`，不会污染你的真实数据库。当前覆盖：
+| 快捷键 | 评分 | 含义 |
+|--------|------|------|
+| `Ctrl+Shift+G` | good | 记住了 |
+| `Ctrl+Shift+H` | hard | 有点难 |
+| `Ctrl+Shift+A` | again | 没记住，下次再来 |
+| `Ctrl+Shift+E` | easy | 轻松，拉长复习间隔 |
 
-```text
-fishword init
-fishword import qwerty
-fishword deck current
-fishword deck use <deck>
-fishword current --json
-fishword rate good --json
-```
+评分后自动显示下一张，FSRS 算法根据你的表现动态调整复习时间。
 
-也可以直接用 Cargo 手动调试：
+### 查看学习统计
 
-```bash
-cargo run -p fishword-cli -- init
-cargo run -p fishword-cli -- current --json
-cargo run -p fishword-cli -- rate good --json
-```
+![统计界面](docs/images/screenshot-stats.png)
 
-手动测试时建议使用隔离 `HOME`：
+输入 `/fw-stats` 查看今日完成量、学习新词数和 7 日学习趋势。
 
-```bash
-HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- init
-HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-HOME=/private/tmp/fishword-dev cargo run -p fishword-cli -- current --json
-```
+### 词库与算法独立性
 
-## 测试与检查
+每个词库都有**独立的 FSRS 调度状态**——CET-4 的复习进度不会影响 CET-6，反之亦然。你可以同时维护多个词库，在不同学习目标之间自由切换，算法会分别记住你对每个词的掌握程度。
 
-Rust 测试：
+例如：备考四级时激活 CET-4，考完后切换到 TOEFL 备考托福，两套进度互不干扰。
 
-```bash
-pnpm test:rust
-```
+### 切换词库
 
-完整本地检查：
+输入 `/fw-deck` 打开词库选择器：
 
-```bash
-pnpm check
-```
+![词库选择器界面](docs/images/screenshot-deck.png)
 
-`pnpm check` 当前会执行：
 
-```text
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test
-node scripts/smoke-cli.mjs
-```
 
-如果只想单独跑某一项：
+选中后立即生效，词卡和统计均切换到对应词库。也可以通过 `/fw-deck` 导入自定义词汇文件（支持 CSV / JSONL / Anki TSV 格式）。
 
-```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test
-node scripts/smoke-cli.mjs
-```
+---
 
-## 本机部署测试
+## 开发文档
 
-如果想像普通用户一样在任意目录执行 `fishword`，可以把本地 `@fishword/cli` wrapper link 到全局。
+如需二次开发、构建或接入新的集成，请参阅 [docs/development.md](docs/development.md)。
 
-先构建 CLI：
+---
 
-```bash
-pnpm dev:cli
-```
+## 许可证
 
-再全局 link：
-
-```bash
-cd packages/cli
-pnpm link --global
-cd ../..
-```
-
-验证：
-
-```bash
-fishword --version
-fishword --help
-```
-
-用隔离数据库做完整手动测试：
-
-```bash
-HOME=/private/tmp/fishword-dev fishword init
-HOME=/private/tmp/fishword-dev fishword import qwerty assets/dicts/qwerty-learner/dicts/CET4_T.json --deck cet4 --name "CET-4"
-HOME=/private/tmp/fishword-dev fishword deck use cet4
-HOME=/private/tmp/fishword-dev fishword current --json
-HOME=/private/tmp/fishword-dev fishword rate good --json
-```
-
-这个全局 `fishword` 实际是 JS wrapper。开发模式下它会解析到当前仓库的：
-
-```text
-target/debug/fishword
-```
-
-所以每次修改 Rust 后，重新执行：
-
-```bash
-pnpm dev:cli
-```
-
-全局命令就会使用最新的 debug binary。
-
-## 默认词库
-
-### Qwerty Learner（通用词表）
-
-355 个英语词表，涵盖编程、教材、通用词汇等，来源及许可证见 [assets/dicts/qwerty-learner/SOURCE.md](./assets/dicts/qwerty-learner/SOURCE.md)。
-
-### kajweb/dict（考纲词表，含例句）
-
-8 个考纲词表，每个词条包含词性、中文释义和英文例句，来源见 [assets/dicts/kajweb/README.md](./assets/dicts/kajweb/README.md)。
-
-| 词书 | 词条数 | 导入命令 |
-|------|--------|----------|
-| CET-4 | 4,544 | `fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck cet4 --name "CET-4"` |
-| CET-6 | 3,992 | `fishword import jsonl assets/dicts/kajweb/cet6.jsonl --deck cet6 --name "CET-6"` |
-| 考研 | 5,057 | `fishword import jsonl assets/dicts/kajweb/kaoyan.jsonl --deck kaoyan --name "考研英语"` |
-| IELTS | 5,275 | `fishword import jsonl assets/dicts/kajweb/ielts.jsonl --deck ielts --name "IELTS"` |
-| TOEFL | 10,377 | `fishword import jsonl assets/dicts/kajweb/toefl.jsonl --deck toefl --name "TOEFL"` |
-| SAT | 4,464 | `fishword import jsonl assets/dicts/kajweb/sat.jsonl --deck sat --name "SAT"` |
-| GRE | 9,984 | `fishword import jsonl assets/dicts/kajweb/gre.jsonl --deck gre --name "GRE"` |
-| GMAT | 3,312 | `fishword import jsonl assets/dicts/kajweb/gmat.jsonl --deck gmat --name "GMAT"` |
+[GPL-3.0-only](LICENSE)

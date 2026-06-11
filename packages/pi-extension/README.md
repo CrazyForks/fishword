@@ -1,30 +1,32 @@
 # @fishword/pi-extension
 
-Pi extension for Fishword. The extension calls the Rust CLI through
-`@fishword/cli` and renders vocabulary cards and learning stats inside Pi
-overlays.
+Fishword 的 Pi 编程助手扩展，在编程时内嵌间隔重复词汇学习。
 
-## Commands
+## 安装
 
-```text
-/fw-deck      Switch active deck
-/fw-stats     Show 7-day learning stats
-/fw-again     Rate current card as again
-/fw-hard      Rate current card as hard
-/fw-good      Rate current card as good
-/fw-easy      Rate current card as easy
+```
+pi install @fishword/pi-extension
 ```
 
-## Shortcuts
+重启 Pi 后自动初始化 CET-4 / CET-6 / TOEFL 三个内置词库，无需任何配置。
 
-```text
-ctrl+shift+v  Refresh current card
-ctrl+shift+a  Again
-ctrl+shift+h  Hard
-ctrl+shift+g  Good
-ctrl+shift+e  Easy
-```
+## 快捷键
 
-The stats overlay uses `fishword status --json` and
-`fishword stats --range 7d --json` as data sources, then draws the trend chart
-in the Pi UI layer.
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+Shift+V` | 显示/刷新当前词卡 |
+| `Ctrl+Shift+G` | 评分：good（记住了） |
+| `Ctrl+Shift+H` | 评分：hard（有点难） |
+| `Ctrl+Shift+A` | 评分：again（没记住） |
+| `Ctrl+Shift+E` | 评分：easy（轻松） |
+
+## Slash 命令
+
+| 命令 | 功能 |
+|------|------|
+| `/fw-stats` | 查看今日进度和 7 日学习趋势 |
+| `/fw-deck` | 切换激活词库 |
+
+## 许可证
+
+GPL-3.0-only
