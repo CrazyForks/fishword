@@ -29,7 +29,8 @@
   "pi": {
     "extensions": [
       "./dist/index.js"
-    ]
+    ],
+    "video": "https://raw.githubusercontent.com/Chenggou1/fishword/main/docs/videos/pi-extension-demo.mp4"
   },
   "engines": {
     "node": ">=18"
