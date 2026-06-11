@@ -26,6 +26,10 @@ pi install @fishword/pi-extension
 |------|------|
 | `/fw-stats` | 查看今日进度和 7 日学习趋势 |
 | `/fw-deck` | 切换激活词库 |
+| `/fw-good` | 评分：good（记住了） |
+| `/fw-hard` | 评分：hard（有点难） |
+| `/fw-again` | 评分：again（没记住） |
+| `/fw-easy` | 评分：easy（轻松） |
 
 ## 许可证
 
