@@ -1,5 +1,5 @@
 import { truncateToWidth } from "@earendil-works/pi-tui";
-import type { DailyStats } from "../types";
+import type { DailyStats } from "../types.ts";
 
 function formatShortDate(date: string): string {
   const parts = date.split("-");

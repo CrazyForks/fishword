@@ -1,9 +1,9 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
 import { Key, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
-import type { StatsResponse, StatusResponse } from "../types";
-import { drawTrendLine, ratingTotals } from "../ui/statsChart";
-import { fitCell, formatPercent } from "../ui/text";
+import type { StatsResponse, StatusResponse } from "../types.ts";
+import { drawTrendLine, ratingTotals } from "../ui/statsChart.ts";
+import { fitCell, formatPercent } from "../ui/text.ts";
 
 type StatsOverlayOptions = {
   status: StatusResponse;

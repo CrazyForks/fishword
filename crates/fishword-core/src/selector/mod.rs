@@ -56,18 +56,24 @@ impl Selector {
     }
 
     pub fn select_next(storage: &Storage) -> Result<Option<SelectedCard>> {
-        let selector = Self::default();
+        let mut selector = Self::default();
+        let progress = storage.progress_counts(selector.daily_new_limit as i64)?;
+        selector.daily_new_limit = progress.new_remaining as usize;
         let current_card_id = storage.get_current_card_id()?;
         let candidates = storage.list_cards_with_state()?;
         let selected = selector.select_from_candidates(&candidates, current_card_id)?;
         if let Some(selected) = &selected {
             storage.set_current_card_id(Some(selected.card.id))?;
+        } else {
+            storage.set_current_card_id(None)?;
         }
         Ok(selected)
     }
 
     pub fn select_next_in_deck(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
-        let selector = Self::default();
+        let mut selector = Self::default();
+        let progress = storage.progress_counts_by_deck(deck_id, selector.daily_new_limit as i64)?;
+        selector.daily_new_limit = progress.new_remaining as usize;
         let current_card_id = storage
             .get_current_card_in_deck(deck_id)?
             .map(|card| card.id);
@@ -75,6 +81,8 @@ impl Selector {
         let selected = selector.select_from_candidates(&candidates, current_card_id)?;
         if let Some(selected) = &selected {
             storage.set_current_card_id(Some(selected.card.id))?;
+        } else {
+            storage.set_current_card_id(None)?;
         }
         Ok(selected)
     }
@@ -125,19 +133,7 @@ impl Selector {
             return Ok(Some(selected(candidate, SelectionReason::New)));
         }
 
-        let mut mature = candidates
-            .iter()
-            .filter(|candidate| candidate.state.reps > 0)
-            .collect::<Vec<_>>();
-        mature.sort_by(|left, right| {
-            left.state
-                .due
-                .cmp(&right.state.due)
-                .then_with(|| left.card.id.cmp(&right.card.id))
-        });
-        Ok(mature
-            .first()
-            .map(|candidate| selected(candidate, SelectionReason::Mature)))
+        Ok(None)
     }
 }
 
@@ -223,14 +219,28 @@ mod tests {
     }
 
     #[test]
-    fn mature_card_is_fallback_when_no_new_or_due_cards() {
+    fn next_stops_when_no_due_or_new_quota_remains() {
         let storage = open_temp();
         let card_id = insert_card(&storage, "known");
         Scheduler::review(&storage, card_id, Rating::Easy).unwrap();
 
-        let selected = Selector::select_next(&storage).unwrap().unwrap();
-        assert_eq!(selected.card.id, card_id);
-        assert_eq!(selected.reason, SelectionReason::Mature);
+        let selected = Selector::select_next(&storage).unwrap();
+        assert!(selected.is_none());
+        assert_eq!(storage.get_current_card_id().unwrap(), None);
+    }
+
+    #[test]
+    fn next_stops_after_daily_new_quota_is_used() {
+        let storage = open_temp();
+        for index in 0..20 {
+            let card_id = insert_card(&storage, &format!("word-{index}"));
+            Scheduler::review(&storage, card_id, Rating::Easy).unwrap();
+        }
+        insert_card(&storage, "extra-new");
+
+        let selected = Selector::select_next(&storage).unwrap();
+        assert!(selected.is_none());
+        assert_eq!(storage.get_current_card_id().unwrap(), None);
     }
 
     #[test]

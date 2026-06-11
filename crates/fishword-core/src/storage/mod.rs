@@ -512,9 +512,23 @@ impl Storage {
             params![deck_id],
             |row| row.get(0),
         )?;
+        let new_reviewed_today = self.conn.query_row(
+            "SELECT COUNT(*)
+             FROM (
+               SELECT r.card_id
+               FROM review_log r
+               JOIN cards c ON c.id = r.card_id
+               WHERE (?1 IS NULL OR c.deck_id = ?1)
+               GROUP BY r.card_id
+               HAVING date(MIN(r.reviewed_at)) = date('now')
+             )",
+            params![deck_id],
+            |row| row.get::<_, i64>(0),
+        )?;
+        let new_quota_remaining = daily_new_limit.saturating_sub(new_reviewed_today);
         Ok(ProgressCounts {
             due_count,
-            new_remaining: daily_new_limit.min(new_count),
+            new_remaining: new_quota_remaining.min(new_count),
             reviewed_today,
         })
     }
@@ -826,6 +840,7 @@ fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{card::Rating, scheduler::Scheduler};
 
     fn open_temp() -> Storage {
         let dir = tempfile::tempdir().unwrap();
@@ -956,6 +971,24 @@ mod tests {
 
         assert_eq!(first_progress.new_remaining, 1);
         assert_eq!(second_progress.new_remaining, 1);
+    }
+
+    #[test]
+    fn test_progress_counts_subtract_new_cards_reviewed_today() {
+        let storage = open_temp();
+        let deck = storage.insert_deck("test", None).unwrap();
+        let first = storage.insert_card(deck.id, "first", &[], &[]).unwrap();
+        storage.insert_card(deck.id, "second", &[], &[]).unwrap();
+        storage.insert_card(deck.id, "third", &[], &[]).unwrap();
+
+        let before = storage.progress_counts_by_deck(deck.id, 2).unwrap();
+        assert_eq!(before.new_remaining, 2);
+
+        Scheduler::review(&storage, first.id, Rating::Easy).unwrap();
+
+        let after = storage.progress_counts_by_deck(deck.id, 2).unwrap();
+        assert_eq!(after.new_remaining, 1);
+        assert_eq!(after.reviewed_today, 1);
     }
 
     #[test]

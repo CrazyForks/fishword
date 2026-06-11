@@ -1,5 +1,5 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { Card } from "../types";
+import type { Card } from "../types.ts";
 
 export function formatPhonetic(card: Card): string {
   const raw = card.phonetic?.us || card.phonetic?.uk || "";
@@ -8,6 +8,7 @@ export function formatPhonetic(card: Card): string {
 
 export function formatMeaning(card: Card): string {
   return card.meanings
+    .map((m) => (typeof m === "string" ? m : [m.part_of_speech, m.definition].filter(Boolean).join(". ")))
     .map((m) => m.replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .join("；");

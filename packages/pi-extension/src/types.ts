@@ -3,8 +3,16 @@ import type { KeyId } from "@earendil-works/pi-tui";
 export type Card = {
   term: string;
   phonetic?: { us?: string; uk?: string };
-  meanings: string[];
+  meanings: Array<string | { part_of_speech: string; definition: string; example?: string }>;
   deck: { name: string };
+};
+
+export type SelectionReason = "due" | "new" | "mature";
+
+export type CardResponse = {
+  schema: "fishword.protocol.current.v1" | "fishword.protocol.next.v1";
+  card: Card;
+  selection: { reason: SelectionReason };
 };
 
 export type Rating = "again" | "hard" | "good" | "easy";
@@ -19,7 +27,10 @@ export type DeckItem = {
 export type StatusResponse = {
   schema: "fishword.protocol.status.v1";
   deck: { id: string; name: string; db_id: number };
+  mode: "review" | "complete" | "empty";
   today: { due: number; new_remaining: number; reviewed: number };
+  display: { plain: string; compact: string; statusline: string };
+  next_action: { kind: "review" | "none"; label: string; command: string };
 };
 
 export type DailyStats = {

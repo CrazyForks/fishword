@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fishwordPath } from "@fishword/cli";
-import type { Card } from "./types";
+import type { CardResponse } from "./types.ts";
 
 const execAsync = promisify(execFile);
 
@@ -30,6 +30,6 @@ export function getErrorCode(res: Record<string, unknown>): string | undefined {
   return (res["error"] as { code?: string })?.code;
 }
 
-export function parseCard(res: Record<string, unknown>): Card {
-  return res["card"] as Card;
+export function parseCardResponse(res: Record<string, unknown>): CardResponse {
+  return res as CardResponse;
 }

@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
 import { SelectList, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { DeckItem } from "../types";
+import type { DeckItem } from "../types.ts";
 
 type DeckSelectorOptions = {
   decks: DeckItem[];

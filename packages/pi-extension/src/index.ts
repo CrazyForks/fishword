@@ -1,20 +1,28 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
-import { getErrorCode, isErrorResponse, parseCard, runFishword } from "./fishword";
-import { showCardOverlay } from "./overlays/card";
-import { showDeckSelectorOverlay } from "./overlays/deckSelector";
-import { showStatsOverlay } from "./overlays/stats";
-import type { DeckItem, Rating, StatsResponse, StatusResponse } from "./types";
-import { RATINGS } from "./types";
+import { getErrorCode, isErrorResponse, parseCardResponse, runFishword } from "./fishword.ts";
+import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
+import { showDeckSelectorOverlay } from "./overlays/deckSelector.ts";
+import { showStatsOverlay } from "./overlays/stats.ts";
+import type { DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
+import { RATINGS } from "./types.ts";
+import { formatStatusLine, formatStatusLineMessage } from "./ui/statusLine.ts";
 
 export default function (pi: ExtensionAPI) {
   let cardOverlayHandle: OverlayHandle | null = null;
   let deckSelectorHandle: OverlayHandle | null = null;
   let statsOverlayHandle: OverlayHandle | null = null;
+  let doneCheckTimer: ReturnType<typeof setInterval> | null = null;
+  let isDone = false;
 
   function hideCardOverlay(): void {
     cardOverlayHandle?.hide();
     cardOverlayHandle = null;
+    isDone = false;
+    if (doneCheckTimer) {
+      clearInterval(doneCheckTimer);
+      doneCheckTimer = null;
+    }
   }
 
   function hideDeckSelector(): void {
@@ -29,19 +37,64 @@ export default function (pi: ExtensionAPI) {
 
   function showCurrentCard(ctx: ExtensionContext, cardResponse: Record<string, unknown>): void {
     hideCardOverlay();
-    showCardOverlay(ctx, parseCard(cardResponse), (handle) => {
+    showCardOverlay(ctx, parseCardResponse(cardResponse), (handle) => {
       cardOverlayHandle = handle;
     });
   }
 
+  function showDone(ctx: ExtensionContext): void {
+    hideCardOverlay();
+    isDone = true;
+    showDoneOverlay(ctx, (handle) => {
+      cardOverlayHandle = handle;
+    });
+    doneCheckTimer = setInterval(() => {
+      void (async () => {
+        const status = await refreshStatusLine(ctx);
+        if (status && status.mode !== "complete") {
+          await refreshDisplay(ctx);
+        }
+      })();
+    }, 60_000);
+  }
+
+  async function refreshStatusLine(ctx: ExtensionContext): Promise<StatusResponse | null> {
+    try {
+      const res = await runFishword(["status", "--json"]);
+      if (isErrorResponse(res)) {
+        const code = getErrorCode(res);
+        ctx.ui.setStatus(
+          "fishword",
+          code === "no_active_deck" || code === "no_cards"
+            ? formatStatusLineMessage("no-deck")
+            : formatStatusLineMessage("unavailable"),
+        );
+        return null;
+      }
+      if (res["schema"] !== "fishword.protocol.status.v1") {
+        ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+        return null;
+      }
+      const status = res as StatusResponse;
+      ctx.ui.setStatus("fishword", formatStatusLine(status));
+      return status;
+    } catch {
+      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+      return null;
+    }
+  }
+
   async function refreshDisplay(ctx: ExtensionContext): Promise<void> {
+    const status = await refreshStatusLine(ctx);
+    if (status?.mode === "complete") {
+      showDone(ctx);
+      return;
+    }
     try {
       const res = await runFishword(["current", "--json"]);
       if (isErrorResponse(res)) {
         hideCardOverlay();
-        ctx.ui.setStatus("fishword", getErrorCode(res) === "no_active_deck" ? "no active deck" : undefined);
       } else {
-        ctx.ui.setStatus("fishword", undefined);
         showCurrentCard(ctx, res);
       }
     } catch {
@@ -50,23 +103,26 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
+    if (isDone) return;
     try {
       const res = await runFishword(["rate", rating, "--json"]);
       if (isErrorResponse(res)) {
         hideCardOverlay();
-        ctx.ui.setStatus("fishword", getErrorCode(res) === "no_active_deck" ? "no active deck" : undefined);
+        await refreshStatusLine(ctx);
       } else {
+        const latestStatus = await refreshStatusLine(ctx);
         const next = res["next"] as Record<string, unknown> | null;
         if (next) {
-          ctx.ui.setStatus("fishword", undefined);
           showCurrentCard(ctx, next);
+        } else if (latestStatus?.mode === "complete") {
+          showDone(ctx);
         } else {
           hideCardOverlay();
-          ctx.ui.setStatus("fishword", "🎉 all done for today!");
         }
       }
     } catch {
       hideCardOverlay();
+      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
     }
   }
 
