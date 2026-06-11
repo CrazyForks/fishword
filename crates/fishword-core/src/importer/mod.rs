@@ -501,7 +501,10 @@ mod tests {
             .unwrap();
         assert_eq!(skipped.skipped, 1);
         assert_eq!(
-            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap().len(),
+            storage
+                .list_cards_by_deck_paginated(deck.id, 100, 0)
+                .unwrap()
+                .len(),
             1
         );
 
@@ -509,7 +512,9 @@ mod tests {
             .import_cards(deck.id, &duplicate.cards, DuplicateStrategy::Merge)
             .unwrap();
         assert_eq!(merged.merged, 1);
-        let cards = storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap();
+        let cards = storage
+            .list_cards_by_deck_paginated(deck.id, 100, 0)
+            .unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].meanings.len(), 2);
         assert!(cards[0].tags.iter().any(|tag| tag == "review"));
@@ -530,7 +535,10 @@ mod tests {
             .unwrap();
         assert_eq!(overwritten.updated, 1);
         assert_eq!(
-            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap()[0].meanings[0]
+            storage
+                .list_cards_by_deck_paginated(deck.id, 100, 0)
+                .unwrap()[0]
+                .meanings[0]
                 .definition,
             "撤销"
         );
@@ -540,7 +548,10 @@ mod tests {
             .unwrap();
         assert_eq!(kept.inserted, 1);
         assert_eq!(
-            storage.list_cards_by_deck_paginated(deck.id, 100, 0).unwrap().len(),
+            storage
+                .list_cards_by_deck_paginated(deck.id, 100, 0)
+                .unwrap()
+                .len(),
             2
         );
     }
@@ -570,7 +581,10 @@ mod tests {
         let jsonl = r#"{"term":"access","meanings":[{"lang":"n","text":"入口","example":"The only access is across the bridge."},{"lang":"vt","text":"访问"}]}"#;
         let deck = import_jsonl_str(jsonl, "test", None).unwrap();
         let meanings = &deck.cards[0].meanings;
-        assert_eq!(meanings[0].example.as_deref(), Some("The only access is across the bridge."));
+        assert_eq!(
+            meanings[0].example.as_deref(),
+            Some("The only access is across the bridge.")
+        );
         assert!(meanings[1].example.is_none());
     }
 
@@ -584,7 +598,9 @@ mod tests {
             .import_cards(db_deck.id, &parsed.cards, DuplicateStrategy::Merge)
             .unwrap();
 
-        let cards = storage.list_cards_by_deck_paginated(db_deck.id, 100, 0).unwrap();
+        let cards = storage
+            .list_cards_by_deck_paginated(db_deck.id, 100, 0)
+            .unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(
             cards[0].meanings[0].example.as_deref(),

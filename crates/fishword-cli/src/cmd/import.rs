@@ -36,10 +36,7 @@ pub fn cmd_import(command: ImportCmd) -> Result<()> {
     persist_import(args, cards)
 }
 
-fn persist_import(
-    args: ImportArgs,
-    cards: Vec<fishword_core::importer::ImportCard>,
-) -> Result<()> {
+fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCard>) -> Result<()> {
     let duplicate_strategy = DuplicateStrategy::from_str(&args.duplicates)
         .with_context(|| format!("invalid --duplicates value '{}'", args.duplicates))?;
     let storage = open_storage()?;

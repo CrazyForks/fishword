@@ -24,9 +24,11 @@ pub fn cmd_init() -> Result<()> {
 pub fn cmd_deck(sub: DeckCmd) -> Result<()> {
     match sub {
         DeckCmd::List { json } => cmd_deck_list(json),
-        DeckCmd::Create { name, description, json } => {
-            cmd_deck_create(&name, description.as_deref(), json)
-        }
+        DeckCmd::Create {
+            name,
+            description,
+            json,
+        } => cmd_deck_create(&name, description.as_deref(), json),
         DeckCmd::Use { deck, json } => cmd_deck_use(deck, json),
         DeckCmd::Delete { id, json } => cmd_deck_delete(id, json),
         DeckCmd::Rename { id, new_name, json } => cmd_deck_rename(id, &new_name, json),
