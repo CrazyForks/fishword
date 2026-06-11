@@ -242,6 +242,26 @@ impl Storage {
             .collect()
     }
 
+    pub fn list_cards_by_deck_paginated(
+        &self,
+        deck_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Card>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT c.id, c.deck_id, c.word, c.language, c.meanings, c.pronunciations,
+                    c.tags, c.source_name, c.source_license, c.created_at
+             FROM cards c
+             WHERE c.deck_id = ?1
+             ORDER BY c.created_at, c.id
+             LIMIT ?2 OFFSET ?3",
+        )?;
+        let cards = stmt
+            .query_map(params![deck_id, limit, offset], card_from_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(cards)
+    }
+
     pub fn insert_card(
         &self,
         deck_id: i64,
@@ -875,6 +895,34 @@ mod tests {
         storage.insert_deck("empty", None).unwrap();
         let cards = storage.list_cards_by_deck("empty").unwrap();
         assert!(cards.is_empty());
+    }
+
+    #[test]
+    fn test_list_cards_by_deck_paginated() {
+        let storage = open_temp();
+        let deck = storage.insert_deck("cet4", None).unwrap();
+        storage.insert_card(deck.id, "first", &[], &[]).unwrap();
+        storage.insert_card(deck.id, "second", &[], &[]).unwrap();
+        storage.insert_card(deck.id, "third", &[], &[]).unwrap();
+
+        let first_page = storage.list_cards_by_deck_paginated(deck.id, 2, 0).unwrap();
+        let second_page = storage.list_cards_by_deck_paginated(deck.id, 2, 2).unwrap();
+
+        assert_eq!(storage.card_count_by_deck(deck.id).unwrap(), 3);
+        assert_eq!(
+            first_page
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["first", "second"]
+        );
+        assert_eq!(
+            second_page
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["third"]
+        );
     }
 
     #[test]

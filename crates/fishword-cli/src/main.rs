@@ -15,8 +15,8 @@ fn main() -> Result<()> {
         Cmd::Init => cmd_init(),
         Cmd::Deck { sub } => cmd_deck(sub),
         Cmd::Card {
-            sub: CardCmd::List { deck },
-        } => cmd_card_list(&deck),
+            sub: CardCmd::List(args),
+        } => cmd_card_list(&args),
         Cmd::Import { sub } => cmd_import(sub),
         Cmd::Current(args) => cmd_current(&args),
         Cmd::Status(args) => cmd_status(&args),

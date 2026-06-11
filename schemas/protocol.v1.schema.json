@@ -7,6 +7,7 @@
     { "$ref": "#/$defs/rate_response" },
     { "$ref": "#/$defs/decks_response" },
     { "$ref": "#/$defs/deck_use_response" },
+    { "$ref": "#/$defs/card_list_response" },
     { "$ref": "#/$defs/status_response" },
     { "$ref": "#/$defs/stats_response" },
     { "$ref": "#/$defs/error_response" }
@@ -68,6 +69,20 @@
         "name": { "type": "string" },
         "description": { "type": ["string", "null"] },
         "message": { "type": "string" }
+      }
+    },
+    "card_list_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "deck", "cards", "pagination"],
+      "properties": {
+        "schema": { "const": "fishword.protocol.card_list.v1" },
+        "deck": { "$ref": "#/$defs/deck" },
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/card" }
+        },
+        "pagination": { "$ref": "#/$defs/pagination" }
       }
     },
     "status_response": {
@@ -220,6 +235,26 @@
         "name": { "type": "string" },
         "description": { "type": ["string", "null"] },
         "active": { "type": "boolean" }
+      }
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page",
+        "page_size",
+        "total",
+        "page_count",
+        "has_previous",
+        "has_next"
+      ],
+      "properties": {
+        "page": { "type": "integer" },
+        "page_size": { "type": "integer" },
+        "total": { "type": "integer" },
+        "page_count": { "type": "integer" },
+        "has_previous": { "type": "boolean" },
+        "has_next": { "type": "boolean" }
       }
     },
     "display": {

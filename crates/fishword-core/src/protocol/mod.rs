@@ -17,6 +17,7 @@ pub const DECKS_SCHEMA: &str = "fishword.protocol.decks.v1";
 pub const DECK_USE_SCHEMA: &str = "fishword.protocol.deck_use.v1";
 pub const STATUS_SCHEMA: &str = "fishword.protocol.status.v1";
 pub const STATS_SCHEMA: &str = "fishword.protocol.stats.v1";
+pub const CARD_LIST_SCHEMA: &str = "fishword.protocol.card_list.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {
@@ -78,6 +79,24 @@ pub struct DeckUseResponse {
     pub name: String,
     pub description: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CardListResponse {
+    pub schema: &'static str,
+    pub deck: DeckFields,
+    pub cards: Vec<ProtocolCard>,
+    pub pagination: PaginationFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaginationFields {
+    pub page: i64,
+    pub page_size: i64,
+    pub total: i64,
+    pub page_count: i64,
+    pub has_previous: bool,
+    pub has_next: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -155,6 +174,32 @@ impl DeckUseResponse {
             name: deck.name.clone(),
             description: deck.description.clone(),
             message: format!("Active deck: {display}"),
+        }
+    }
+}
+
+impl CardListResponse {
+    pub fn new(deck: &Deck, cards: Vec<Card>, page: i64, page_size: i64, total: i64) -> Self {
+        let page_count = if total == 0 {
+            0
+        } else {
+            (total + page_size - 1) / page_size
+        };
+        Self {
+            schema: CARD_LIST_SCHEMA,
+            deck: deck_fields(deck),
+            cards: cards
+                .into_iter()
+                .map(|card| protocol_card(&card, deck))
+                .collect(),
+            pagination: PaginationFields {
+                page,
+                page_size,
+                total,
+                page_count,
+                has_previous: page > 1 && page_count > 0,
+                has_next: page < page_count,
+            },
         }
     }
 }
@@ -683,6 +728,17 @@ mod tests {
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
             "../../fixtures/protocol_deck_use_sample.json"
+        ))
+        .unwrap();
+        assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn card_list_response_serializes_stable_fields() {
+        let response = CardListResponse::new(&sample_deck(), vec![sample_card()], 1, 50, 1);
+        let value = serde_json::to_value(response).unwrap();
+        let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../fixtures/protocol_card_list_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);

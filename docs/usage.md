@@ -82,6 +82,8 @@ fishword import anki-tsv ./anki.txt --deck anki --name "Anki"
 ```bash
 fishword deck list
 fishword card list --deck cet4
+fishword card list --deck cet4 --page 1 --page-size 20
+fishword card list --deck cet4 --page 1 --page-size 20 --json
 ```
 
 选择当前学习词库：

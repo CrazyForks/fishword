@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use fishword_core::{
-    protocol::{DeckListResponse, DeckUseResponse},
+    protocol::{CardListResponse, DeckListResponse, DeckUseResponse},
     storage::Storage,
 };
 
 use crate::{
-    args::DeckCmd,
+    args::{CardListArgs, DeckCmd},
     util::{exit_json_error, open_storage, print_json, resolve_deck_scope},
 };
 
@@ -96,22 +96,81 @@ fn cmd_deck_current() -> Result<()> {
     Ok(())
 }
 
-pub fn cmd_card_list(deck: &str) -> Result<()> {
+pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
+    if args.page < 1 {
+        if args.json {
+            exit_json_error("invalid_page", "Page must be greater than or equal to 1.");
+        }
+        anyhow::bail!("invalid --page '{}', expected a value >= 1", args.page);
+    }
+    if args.page_size < 1 {
+        if args.json {
+            exit_json_error(
+                "invalid_page_size",
+                "Page size must be greater than or equal to 1.",
+            );
+        }
+        anyhow::bail!(
+            "invalid --page-size '{}', expected a value >= 1",
+            args.page_size
+        );
+    }
     let storage = open_storage()?;
+    let deck = match storage
+        .get_deck_by_name(&args.deck)
+        .with_context(|| format!("failed to read deck '{}'", args.deck))?
+    {
+        Some(deck) => deck,
+        None if args.json => {
+            exit_json_error("deck_not_found", &format!("Deck not found: {}", args.deck));
+        }
+        None => anyhow::bail!("deck not found: {}", args.deck),
+    };
+    let total = storage
+        .card_count_by_deck(deck.id)
+        .with_context(|| format!("failed to count cards for deck '{}'", args.deck))?;
+    let offset = (args.page - 1) * args.page_size;
     let cards = storage
-        .list_cards_by_deck(deck)
-        .with_context(|| format!("failed to list cards for deck '{deck}'"))?;
-    if cards.is_empty() {
-        println!("No cards in deck '{deck}'.");
+        .list_cards_by_deck_paginated(deck.id, args.page_size, offset)
+        .with_context(|| format!("failed to list cards for deck '{}'", args.deck))?;
+    if args.json {
+        return print_json(&CardListResponse::new(
+            &deck,
+            cards,
+            args.page,
+            args.page_size,
+            total,
+        ));
+    }
+    if total == 0 {
+        println!("No cards in deck '{}'.", args.deck);
         return Ok(());
     }
+    let page_count = (total + args.page_size - 1) / args.page_size;
+    if cards.is_empty() {
+        println!(
+            "No cards on page {} for deck '{}' ({} cards, {} pages).",
+            args.page, args.deck, total, page_count
+        );
+        return Ok(());
+    }
+    println!(
+        "Deck: {} ({})  Page {}/{}  Total {}",
+        deck.name, deck.id, args.page, page_count, total
+    );
     println!("{:<6}  {:<20}  MEANINGS", "ID", "WORD");
     println!("{}", "-".repeat(60));
     for c in cards {
         let meanings_summary = c
             .meanings
             .iter()
-            .map(|m| format!("[{}] {}", m.part_of_speech, m.definition))
+            .map(|m| {
+                if m.part_of_speech.is_empty() {
+                    m.definition.clone()
+                } else {
+                    format!("[{}] {}", m.part_of_speech, m.definition)
+                }
+            })
             .collect::<Vec<_>>()
             .join("; ");
         println!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary);

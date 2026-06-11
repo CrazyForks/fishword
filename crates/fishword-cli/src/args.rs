@@ -61,11 +61,7 @@ pub enum DeckCmd {
 #[derive(Subcommand)]
 pub enum CardCmd {
     /// List cards in a deck.
-    List {
-        /// Deck name (e.g. cet4)
-        #[arg(long)]
-        deck: String,
-    },
+    List(CardListArgs),
 }
 
 #[derive(Subcommand)]
@@ -93,6 +89,22 @@ pub struct ImportArgs {
     /// Duplicate strategy: merge, skip, overwrite, keep.
     #[arg(long, default_value = "merge")]
     pub duplicates: String,
+}
+
+#[derive(Parser)]
+pub struct CardListArgs {
+    /// Deck name (e.g. cet4)
+    #[arg(long)]
+    pub deck: String,
+    /// Page number, starting from 1.
+    #[arg(long, default_value_t = 1)]
+    pub page: i64,
+    /// Number of cards per page.
+    #[arg(long, default_value_t = 50)]
+    pub page_size: i64,
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Parser)]
