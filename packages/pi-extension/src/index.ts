@@ -3,27 +3,36 @@ import type { OverlayHandle } from "@earendil-works/pi-tui";
 import { seedDefaultDecks } from "./defaultDecks.ts";
 import { getErrorCode, isErrorResponse, parseCardResponse, runFishword } from "./fishword.ts";
 import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
+import { showCardDetailOverlay } from "./overlays/cardDetail.ts";
 import { showDeckSelectorOverlay } from "./overlays/deckSelector.ts";
 import { showStatsOverlay } from "./overlays/stats.ts";
-import type { DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
+import type { CardResponse, DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
 import { RATINGS } from "./types.ts";
 import { formatStatusLine, formatStatusLineMessage } from "./ui/statusLine.ts";
 
 export default function (pi: ExtensionAPI) {
   let cardOverlayHandle: OverlayHandle | null = null;
+  let cardDetailHandle: OverlayHandle | null = null;
   let deckSelectorHandle: OverlayHandle | null = null;
   let statsOverlayHandle: OverlayHandle | null = null;
   let doneCheckTimer: ReturnType<typeof setInterval> | null = null;
   let isDone = false;
+  let currentCardResponse: CardResponse | null = null;
 
   function hideCardOverlay(): void {
     cardOverlayHandle?.hide();
     cardOverlayHandle = null;
     isDone = false;
+    currentCardResponse = null;
     if (doneCheckTimer) {
       clearInterval(doneCheckTimer);
       doneCheckTimer = null;
     }
+  }
+
+  function hideCardDetail(): void {
+    cardDetailHandle?.hide();
+    cardDetailHandle = null;
   }
 
   function hideDeckSelector(): void {
@@ -38,7 +47,9 @@ export default function (pi: ExtensionAPI) {
 
   function showCurrentCard(ctx: ExtensionContext, cardResponse: Record<string, unknown>): void {
     hideCardOverlay();
-    showCardOverlay(ctx, parseCardResponse(cardResponse), (handle) => {
+    const parsed = parseCardResponse(cardResponse);
+    currentCardResponse = parsed;
+    showCardOverlay(ctx, parsed, (handle) => {
       cardOverlayHandle = handle;
     });
   }
@@ -258,4 +269,72 @@ export default function (pi: ExtensionAPI) {
       },
     });
   }
+
+  function openCardDetail(ctx: ExtensionContext): void {
+    // Hide card / done overlay before showing detail
+    cardOverlayHandle?.hide();
+    cardOverlayHandle = null;
+    if (doneCheckTimer) {
+      clearInterval(doneCheckTimer);
+      doneCheckTimer = null;
+    }
+    hideCardDetail();
+
+    showCardDetailOverlay(ctx, {
+      response: currentCardResponse,
+      onHandle: (handle) => {
+        cardDetailHandle = handle;
+      },
+      onClose: () => {
+        cardDetailHandle = null;
+        // Restore card overlay when user dismisses detail
+        if (currentCardResponse) {
+          showCardOverlay(ctx, currentCardResponse, (handle) => {
+            cardOverlayHandle = handle;
+          });
+        }
+      },
+      onRate: (rating) => {
+        void rateInDetail(ctx, rating);
+      },
+    });
+  }
+
+  async function rateInDetail(ctx: ExtensionContext, rating: Rating): Promise<void> {
+    if (!currentCardResponse) return;
+    cardDetailHandle = null;
+    try {
+      const res = await runFishword(["rate", rating, "--json"]);
+      if (isErrorResponse(res)) {
+        await refreshStatusLine(ctx);
+        currentCardResponse = null;
+        openCardDetail(ctx);
+        return;
+      }
+      await refreshStatusLine(ctx);
+      const next = res["next"] as Record<string, unknown> | null;
+      if (next) {
+        currentCardResponse = parseCardResponse(next);
+      } else {
+        currentCardResponse = null;
+      }
+      openCardDetail(ctx);
+    } catch {
+      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+    }
+  }
+
+  pi.registerCommand("fw-detail", {
+    description: "Fishword: show detailed card info (phonetics, meanings, examples)",
+    handler: async (_args, ctx) => {
+      openCardDetail(ctx);
+    },
+  });
+
+  pi.registerShortcut("ctrl+shift+i", {
+    description: "Fishword: show detailed card info",
+    handler: async (ctx) => {
+      openCardDetail(ctx);
+    },
+  });
 }

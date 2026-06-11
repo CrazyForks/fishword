@@ -1,10 +1,14 @@
 import type { KeyId } from "@earendil-works/pi-tui";
 
 export type Card = {
+  id: string;
   term: string;
-  phonetic?: { us?: string; uk?: string };
+  language: string;
+  phonetic?: { us?: string | null; uk?: string | null; other?: string[] };
   meanings: Array<string | { part_of_speech: string; definition: string; example?: string }>;
-  deck: { name: string };
+  deck: { id: string; name: string; db_id: number };
+  tags: string[];
+  source?: { name: string; license?: string | null } | null;
 };
 
 export type SelectionReason = "due" | "new" | "mature";
