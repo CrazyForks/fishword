@@ -117,6 +117,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm --filter @fishword/cli publish --access public --provenance --no-git-checks
 
+      # 准备 Pi extension 内置词库资源
+      - name: Prepare pi-extension assets
+        run: node scripts/prepare-pi-extension-assets.mjs
+
       # 编译 Pi extension TypeScript → dist/
       - name: Build pi-extension
         run: pnpm --filter @fishword/pi-extension run build
