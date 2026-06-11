@@ -144,7 +144,7 @@ pub fn import_csv_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> Res
         let row = headers
             .iter()
             .cloned()
-            .zip(values.into_iter())
+            .zip(values)
             .collect::<HashMap<_, _>>();
         cards.push(
             csv_row_to_card(&row, deck_id)
