@@ -4,7 +4,7 @@
   "description": "Pi extension for Fishword.",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "keywords": ["pi-package", "pi-extension", "vocabulary", "flashcard", "fsrs"],
   "dependencies": {
     "@fishword/cli": "workspace:*"

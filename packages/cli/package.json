@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "JavaScript wrapper for the Fishword Rust CLI.",
   "type": "module",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "bin": {
     "fishword": "./bin/fishword.js"
   },
