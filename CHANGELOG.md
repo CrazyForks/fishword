@@ -1,0 +1,54 @@
+# Changelog
+
+## [0.1.0](https://github.com/Chenggou1/fishword/releases/tag/v0.1.0) (2026-06-11)
+
+首个公开发布版本。
+
+### 核心功能
+
+- **FSRS 调度引擎**：基于 FSRS v5 算法，根据每次评分（again / hard / good / easy）动态调整复习间隔，每个词库的算法状态独立维护
+- **本地 SQLite 存储**：全部数据存储在本机，无需联网，无账号
+
+### 词库管理
+
+- `deck create / delete / rename`：完整的词库 CRUD，以数字 ID 为主键
+- `deck use`：激活词库，后续复习命令默认作用于当前激活词库
+- `deck list`：列出所有词库及今日进度
+
+### 词汇导入
+
+支持四种格式：
+- **JSONL**（含例句，推荐）
+- **CSV**
+- **Anki TSV**
+- **Qwerty Learner JSON**
+
+内置三个考纲词库（首次启动 Pi extension 时自动导入）：
+
+| 词库 | 词条数 |
+|------|--------|
+| CET-4 | 4,544 |
+| CET-6 | 3,992 |
+| TOEFL | 10,377 |
+
+### 复习流程
+
+- `current`：获取当前待复习词卡（含例句、释义）
+- `rate <again|hard|good|easy>`：评分并推进到下一张
+- `status`：当前词库的今日进度（新词 / 复习 / 剩余）
+- `stats`：7 日学习趋势
+
+### Pi 编程助手集成（`@fishword/pi-extension`）
+
+- 首次启动自动初始化三个内置词库，无需任何配置
+- 词卡 overlay：`Ctrl+Shift+V` 显示当前词卡，快捷键一键评分
+- 统计 overlay：`/fw-stats` 查看今日进度和 7 日趋势
+- 词库选择器：`/fw-deck` 交互式切换激活词库
+- 完成今日任务后展示鼓励信息
+
+### 发布与分发
+
+- 多平台预编译二进制（macOS arm64/x64、Linux arm64/x64、Windows x64）
+- npm 包：`@fishword/cli`、`@fishword/pi-extension` 及五个平台包
+- GitHub Actions release CI：tag 触发，自动编译并发布到 npm
+
