@@ -2,10 +2,21 @@
   "name": "@fishword/pi-extension",
   "version": "0.1.0",
   "description": "Pi extension for Fishword.",
-  "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
-  "keywords": ["pi-package", "pi-extension", "vocabulary", "flashcard", "fsrs"],
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "vocabulary",
+    "flashcard",
+    "fsrs"
+  ],
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-tui --external:@fishword/cli --outfile=dist/index.js"
+  },
   "dependencies": {
     "@fishword/cli": "workspace:*"
   },
@@ -14,12 +25,15 @@
     "@earendil-works/pi-tui": "*"
   },
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": [
+      "./dist/index.js"
+    ]
   },
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
-    "@earendil-works/pi-tui": "0.79.1"
+    "@earendil-works/pi-tui": "0.79.1",
+    "esbuild": "^0.28.0"
   }
 }

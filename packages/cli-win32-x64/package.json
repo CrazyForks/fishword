@@ -4,6 +4,6 @@
   "description": "Fishword CLI binary for Windows x64.",
   "os": ["win32"],
   "cpu": ["x64"],
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "files": ["bin/"]
 }

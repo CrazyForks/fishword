@@ -4,6 +4,6 @@
   "description": "Fishword CLI binary for macOS arm64.",
   "os": ["darwin"],
   "cpu": ["arm64"],
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "files": ["bin/"]
 }
