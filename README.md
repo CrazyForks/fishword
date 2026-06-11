@@ -15,7 +15,7 @@ Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/
 ### 安装
 
 ```
-pi install @fishword/pi-extension
+pi install npm:@fishword/pi-extension
 ```
 
 重启 Pi 后，扩展自动完成初始化——创建并导入三个内置词库：
