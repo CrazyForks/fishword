@@ -18,5 +18,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-tui": "0.79.1"
   }
 }

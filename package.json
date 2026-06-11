@@ -10,6 +10,10 @@
     "lint:rust": "cargo clippy --all-targets --all-features -- -D warnings",
     "format:check": "cargo fmt --all -- --check",
     "smoke:cli": "node scripts/smoke-cli.mjs",
+    "check:pi-extension": "tsc -p packages/pi-extension/tsconfig.json --noEmit",
     "check": "pnpm format:check && pnpm lint:rust && pnpm test:rust && pnpm smoke:cli"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }
