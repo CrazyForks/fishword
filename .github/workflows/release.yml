@@ -102,33 +102,27 @@ jobs:
           mkdir -p packages/cli-win32-x64/bin
           cp artifacts/cli-win32-x64/fishword.exe packages/cli-win32-x64/bin/fishword.exe
 
-      # 发布平台包（顺序无所谓，主包依赖它们）
+      # 发布平台包（无 workspace:* 依赖，顺序无所谓）
       - name: Publish platform packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for pkg in cli-darwin-arm64 cli-darwin-x64 cli-linux-arm64 cli-linux-x64 cli-win32-x64; do
-            cd packages/$pkg
-            npm publish --access public --provenance
-            cd ../..
+            pnpm --filter @fishword/$pkg publish --access public --provenance --no-git-checks
           done
 
-      # 发布主包
+      # 发布主包（pnpm publish 自动将 workspace:* 转为实际版本号）
       - name: Publish @fishword/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          cd packages/cli
-          npm publish --access public --provenance
+        run: pnpm --filter @fishword/cli publish --access public --provenance --no-git-checks
 
       # 编译 Pi extension TypeScript → dist/
       - name: Build pi-extension
         run: pnpm --filter @fishword/pi-extension run build
 
-      # 发布 Pi extension
+      # 发布 Pi extension（pnpm publish 自动将 workspace:* 转为实际版本号）
       - name: Publish @fishword/pi-extension
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          cd packages/pi-extension
-          npm publish --access public --provenance
+        run: pnpm --filter @fishword/pi-extension publish --access public --provenance --no-git-checks
