@@ -22,6 +22,11 @@ export async function runFishword(args: string[]): Promise<Record<string, unknow
   }
 }
 
+export async function runFishwordText(args: string[]): Promise<string> {
+  const { stdout } = await execAsync(fishwordPath, args);
+  return stdout.trim();
+}
+
 export function isErrorResponse(res: Record<string, unknown>): boolean {
   return res["schema"] === "fishword.protocol.error.v1";
 }

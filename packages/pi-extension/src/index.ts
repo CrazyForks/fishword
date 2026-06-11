@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
+import { seedDefaultDecks } from "./defaultDecks.ts";
 import { getErrorCode, isErrorResponse, parseCardResponse, runFishword } from "./fishword.ts";
 import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
 import { showDeckSelectorOverlay } from "./overlays/deckSelector.ts";
@@ -215,6 +216,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   pi.on("session_start", async (_event, ctx) => {
+    await seedDefaultDecks(ctx);
     await refreshDisplay(ctx);
   });
 

@@ -4,3 +4,4 @@ node_modules
 dist
 /internal
 packages/pi-extension/dist/
+packages/pi-extension/assets/

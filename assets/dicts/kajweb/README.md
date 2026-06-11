@@ -15,17 +15,24 @@
 | `gre.jsonl` | GRE | 9984 |
 | `gmat.jsonl` | GMAT | 3312 |
 
-## 导入方法
+## 生成方法
 
 ```bash
-fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck cet4 --name "CET-4"
-fishword import jsonl assets/dicts/kajweb/cet6.jsonl --deck cet6 --name "CET-6"
-fishword import jsonl assets/dicts/kajweb/kaoyan.jsonl --deck kaoyan --name "考研英语"
-fishword import jsonl assets/dicts/kajweb/ielts.jsonl --deck ielts --name "IELTS"
-fishword import jsonl assets/dicts/kajweb/toefl.jsonl --deck toefl --name "TOEFL"
-fishword import jsonl assets/dicts/kajweb/sat.jsonl --deck sat --name "SAT"
-fishword import jsonl assets/dicts/kajweb/gre.jsonl --deck gre --name "GRE"
-fishword import jsonl assets/dicts/kajweb/gmat.jsonl --deck gmat --name "GMAT"
+uv run scripts/kajweb_to_jsonl.py --book CET4 -o assets/dicts/kajweb/cet4.jsonl
+uv run scripts/kajweb_to_jsonl.py --book CET6 -o assets/dicts/kajweb/cet6.jsonl
+uv run scripts/kajweb_to_jsonl.py --book KaoYan -o assets/dicts/kajweb/kaoyan.jsonl
+uv run scripts/kajweb_to_jsonl.py --book IELTS -o assets/dicts/kajweb/ielts.jsonl
+uv run scripts/kajweb_to_jsonl.py --book TOEFL -o assets/dicts/kajweb/toefl.jsonl
+uv run scripts/kajweb_to_jsonl.py --book SAT -o assets/dicts/kajweb/sat.jsonl
+uv run scripts/kajweb_to_jsonl.py --book GRE -o assets/dicts/kajweb/gre.jsonl
+uv run scripts/kajweb_to_jsonl.py --book GMAT -o assets/dicts/kajweb/gmat.jsonl
+```
+
+## 手动导入方法
+
+```bash
+fishword deck create CET-4 --description "大学英语四级"
+fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck 1
 ```
 
 ## 数据来源与协议
