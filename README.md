@@ -7,6 +7,8 @@
 
 Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm) 算法调度复习，数据完全存储在本地 SQLite，无需联网。你可以通过 CLI 直接使用，也可以通过集成接入到你的开发环境中。
 
+本项目认可并感谢 [LINUX DO](https://linux.do/) 社区。
+
 ---
 
 ## 当前集成：Pi 编程助手
