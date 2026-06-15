@@ -455,6 +455,7 @@ mod tests {
             import_qwerty_str(&fixture("qwerty_cet4_sample.json"), "cet4", Some("CET-4")).unwrap();
         assert_eq!(deck.cards.len(), 2);
         assert_eq!(deck.cards[0].word, "cancel");
+        assert!(deck.cards[0].tags.is_empty());
         assert_eq!(
             deck.cards[0].source.as_ref().unwrap().name,
             "qwerty-learner"
@@ -471,6 +472,7 @@ mod tests {
         assert_eq!(deck.cards.len(), 2);
         assert_eq!(deck.cards[1].word, "abandon");
         assert_eq!(deck.cards[1].meanings[0].definition, "放弃");
+        assert!(deck.cards[0].tags.is_empty());
     }
 
     #[test]
@@ -479,9 +481,25 @@ mod tests {
         assert_eq!(jsonl.cards[0].word, "cancel");
         assert_eq!(jsonl.cards[0].pronunciations.len(), 2);
 
-        let anki = import_anki_tsv_str(&fixture("anki_sample.tsv"), "anki", None).unwrap();
+        let anki = import_anki_tsv_str(&fixture("anki_sample.tsv"), "custom", None).unwrap();
         assert_eq!(anki.cards.len(), 2);
         assert_eq!(anki.cards[0].source.as_ref().unwrap().name, "anki-tsv");
+        assert_eq!(anki.cards[0].tags, vec!["anki"]);
+    }
+
+    #[test]
+    fn importer_preserves_only_explicit_tags() {
+        let csv =
+            import_csv_str("word,meaning,tags\ncancel,取消,review;hard\n", "cet4", None).unwrap();
+        assert_eq!(csv.cards[0].tags, vec!["review", "hard"]);
+
+        let jsonl = import_jsonl_str(
+            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#,
+            "jsonl",
+            None,
+        )
+        .unwrap();
+        assert!(jsonl.cards[0].tags.is_empty());
     }
 
     #[test]

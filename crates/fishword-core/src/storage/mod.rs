@@ -1136,4 +1136,40 @@ mod tests {
         assert_eq!(card.language, "en");
         assert!(card.tags.is_empty());
     }
+
+    #[test]
+    fn test_open_removes_empty_card_tags() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("tags.db");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(MIGRATION).unwrap();
+        conn.execute(
+            "INSERT INTO decks (name, description) VALUES (?1, ?2)",
+            params!["legacy", Option::<String>::None],
+        )
+        .unwrap();
+        let deck_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO cards
+             (deck_id, word, language, meanings, pronunciations, tags, source_name, source_license)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                deck_id,
+                "cancel",
+                "en",
+                "[]",
+                "[]",
+                r#"["", "anki", ""]"#,
+                Option::<String>::None,
+                Option::<String>::None
+            ],
+        )
+        .unwrap();
+        drop(conn);
+
+        let storage = Storage::open(&path).unwrap();
+        let cards = storage.list_cards_by_deck("legacy").unwrap();
+
+        assert_eq!(cards[0].tags, vec!["anki"]);
+    }
 }
