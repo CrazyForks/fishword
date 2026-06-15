@@ -326,36 +326,7 @@ impl Storage {
     }
 
     pub fn insert_card_with_metadata(&self, deck_id: i64, card: &ImportCard) -> Result<Card> {
-        let meanings_json = serde_json::to_string(&card.meanings)?;
-        let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
-        let tags_json = serde_json::to_string(&card.tags)?;
-        self.conn.execute(
-            "INSERT INTO cards
-             (deck_id, word, language, meanings, pronunciations, tags, source_name, source_license)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                deck_id,
-                card.word,
-                card.language,
-                meanings_json,
-                pronunciations_json,
-                tags_json,
-                card.source.as_ref().map(|source| source.name.as_str()),
-                card.source
-                    .as_ref()
-                    .and_then(|source| source.license.as_deref())
-            ],
-        )?;
-        let id = self.conn.last_insert_rowid();
-
-        // Insert a default card_state row.
-        self.conn.execute(
-            "INSERT OR IGNORE INTO card_state (card_id) VALUES (?1)",
-            params![id],
-        )?;
-
-        self.get_card_by_id(id)?
-            .ok_or_else(|| Error::NotFound(format!("card id {id}")))
+        insert_card_with_metadata_on(&self.conn, deck_id, card)
     }
 
     pub fn import_cards(
@@ -377,44 +348,36 @@ impl Storage {
             merged: 0,
         };
 
+        let tx = self.conn.unchecked_transaction()?;
+
         for import_card in cards {
-            let existing = self.find_first_card_by_word(deck.id, &import_card.word)?;
+            let existing = find_first_card_by_word_on(&tx, deck.id, &import_card.word)?;
             match (existing, duplicate_strategy) {
                 (None, _) | (Some(_), DuplicateStrategy::Keep) => {
-                    self.insert_card_with_metadata(deck.id, import_card)?;
+                    insert_card_with_metadata_on(&tx, deck.id, import_card)?;
                     summary.inserted += 1;
                 }
                 (Some(_), DuplicateStrategy::Skip) => {
                     summary.skipped += 1;
                 }
                 (Some(existing), DuplicateStrategy::Overwrite) => {
-                    self.update_card_from_import(existing.id, import_card)?;
+                    update_card_from_import_on(&tx, existing.id, import_card)?;
                     summary.updated += 1;
                 }
                 (Some(existing), DuplicateStrategy::Merge) => {
                     let merged = merge_import_card(&existing, import_card);
-                    self.update_card_from_import(existing.id, &merged)?;
+                    update_card_from_import_on(&tx, existing.id, &merged)?;
                     summary.merged += 1;
                 }
             }
         }
 
+        tx.commit()?;
         Ok(summary)
     }
 
     pub fn get_card_by_id(&self, id: i64) -> Result<Option<Card>> {
-        let result = self.conn.query_row(
-            "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
-                    source_name, source_license, created_at
-             FROM cards WHERE id = ?1",
-            params![id],
-            card_from_row,
-        );
-        match result {
-            Ok(card) => Ok(Some(card)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(Error::Db(e)),
-        }
+        get_card_by_id_on(&self.conn, id)
     }
 
     pub fn get_current_card_id(&self) -> Result<Option<i64>> {
@@ -688,54 +651,6 @@ impl Storage {
         Ok(())
     }
 
-    fn find_first_card_by_word(&self, deck_id: i64, word: &str) -> Result<Option<Card>> {
-        let result = self.conn.query_row(
-            "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
-                    source_name, source_license, created_at
-             FROM cards
-             WHERE deck_id = ?1 AND word = ?2
-             ORDER BY id
-             LIMIT 1",
-            params![deck_id, word],
-            card_from_row,
-        );
-        match result {
-            Ok(card) => Ok(Some(card)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(Error::Db(e)),
-        }
-    }
-
-    fn update_card_from_import(&self, id: i64, card: &ImportCard) -> Result<()> {
-        let meanings_json = serde_json::to_string(&card.meanings)?;
-        let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
-        let tags_json = serde_json::to_string(&card.tags)?;
-        self.conn.execute(
-            "UPDATE cards
-             SET word = ?1,
-                 language = ?2,
-                 meanings = ?3,
-                 pronunciations = ?4,
-                 tags = ?5,
-                 source_name = ?6,
-                 source_license = ?7
-             WHERE id = ?8",
-            params![
-                card.word,
-                card.language,
-                meanings_json,
-                pronunciations_json,
-                tags_json,
-                card.source.as_ref().map(|source| source.name.as_str()),
-                card.source
-                    .as_ref()
-                    .and_then(|source| source.license.as_deref()),
-                id
-            ],
-        )?;
-        Ok(())
-    }
-
     /// Fetch the FSRS state for a card (returns `None` if card has no state row).
     pub fn get_card_state(&self, card_id: i64) -> Result<Option<CardState>> {
         let result = self.conn.query_row(
@@ -772,6 +687,104 @@ impl Storage {
             Err(e) => Err(Error::Db(e)),
         }
     }
+}
+
+fn insert_card_with_metadata_on(
+    conn: &Connection,
+    deck_id: i64,
+    card: &ImportCard,
+) -> Result<Card> {
+    let meanings_json = serde_json::to_string(&card.meanings)?;
+    let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
+    let tags_json = serde_json::to_string(&card.tags)?;
+    conn.execute(
+        "INSERT INTO cards
+         (deck_id, word, language, meanings, pronunciations, tags, source_name, source_license)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            deck_id,
+            card.word,
+            card.language,
+            meanings_json,
+            pronunciations_json,
+            tags_json,
+            card.source.as_ref().map(|source| source.name.as_str()),
+            card.source
+                .as_ref()
+                .and_then(|source| source.license.as_deref())
+        ],
+    )?;
+    let id = conn.last_insert_rowid();
+
+    conn.execute(
+        "INSERT OR IGNORE INTO card_state (card_id) VALUES (?1)",
+        params![id],
+    )?;
+
+    get_card_by_id_on(conn, id)?.ok_or_else(|| Error::NotFound(format!("card id {id}")))
+}
+
+fn get_card_by_id_on(conn: &Connection, id: i64) -> Result<Option<Card>> {
+    let result = conn.query_row(
+        "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
+                source_name, source_license, created_at
+         FROM cards WHERE id = ?1",
+        params![id],
+        card_from_row,
+    );
+    match result {
+        Ok(card) => Ok(Some(card)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(Error::Db(e)),
+    }
+}
+
+fn find_first_card_by_word_on(conn: &Connection, deck_id: i64, word: &str) -> Result<Option<Card>> {
+    let result = conn.query_row(
+        "SELECT id, deck_id, word, language, meanings, pronunciations, tags,
+                source_name, source_license, created_at
+         FROM cards
+         WHERE deck_id = ?1 AND word = ?2
+         ORDER BY id
+         LIMIT 1",
+        params![deck_id, word],
+        card_from_row,
+    );
+    match result {
+        Ok(card) => Ok(Some(card)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(Error::Db(e)),
+    }
+}
+
+fn update_card_from_import_on(conn: &Connection, id: i64, card: &ImportCard) -> Result<()> {
+    let meanings_json = serde_json::to_string(&card.meanings)?;
+    let pronunciations_json = serde_json::to_string(&card.pronunciations)?;
+    let tags_json = serde_json::to_string(&card.tags)?;
+    conn.execute(
+        "UPDATE cards
+         SET word = ?1,
+             language = ?2,
+             meanings = ?3,
+             pronunciations = ?4,
+             tags = ?5,
+             source_name = ?6,
+             source_license = ?7
+         WHERE id = ?8",
+        params![
+            card.word,
+            card.language,
+            meanings_json,
+            pronunciations_json,
+            tags_json,
+            card.source.as_ref().map(|source| source.name.as_str()),
+            card.source
+                .as_ref()
+                .and_then(|source| source.license.as_deref()),
+            id
+        ],
+    )?;
+    Ok(())
 }
 
 fn card_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Card> {
