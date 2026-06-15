@@ -38,20 +38,19 @@ function run(args, options = {}) {
 try {
   run(["init"]);
 
-  // M12: deck must be created explicitly before import
-  const created = run(["deck", "create", "smoke", "--description", "Smoke test deck", "--json"], { json: true });
-  if (created.schema !== "fishword.protocol.deck_create.v1") {
-    throw new Error(`deck create returned unexpected schema: ${created.schema}`);
-  }
-  const deckId = created.deck.id;
-
   run([
     "import",
     "qwerty",
     "crates/fishword-core/fixtures/qwerty_cet4_sample.json",
-    "--deck",
-    String(deckId),
+    "--name",
+    "smoke",
   ]);
+  const decks = run(["deck", "list", "--json"], { json: true });
+  const importedDeck = decks.decks?.find((deck) => deck.name === "smoke");
+  if (!importedDeck?.id) {
+    throw new Error(`import --name did not create the smoke deck: ${JSON.stringify(decks)}`);
+  }
+  const deckId = importedDeck.id;
 
   const activeDeck = run(["deck", "current"]);
   if (!activeDeck.includes("smoke")) {

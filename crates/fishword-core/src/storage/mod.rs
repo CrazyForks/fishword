@@ -1298,4 +1298,47 @@ mod tests {
 
         assert_eq!(cards[0].tags, vec!["anki"]);
     }
+
+    #[test]
+    fn test_open_preserves_non_empty_legacy_tags_while_cleaning_empty_tags() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("legacy-tags.db");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(MIGRATION).unwrap();
+        conn.execute(
+            "INSERT INTO decks (name, description) VALUES (?1, ?2)",
+            params!["CET-4", Option::<String>::None],
+        )
+        .unwrap();
+        let deck_id = conn.last_insert_rowid();
+        for (word, tags) in [
+            ("cancel", r#"["", "CET-4", "review", ""]"#),
+            ("abandon", r#"["hard", "anki"]"#),
+        ] {
+            conn.execute(
+                "INSERT INTO cards
+                 (deck_id, word, language, meanings, pronunciations, tags, source_name, source_license)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    deck_id,
+                    word,
+                    "en",
+                    "[]",
+                    "[]",
+                    tags,
+                    Option::<String>::None,
+                    Option::<String>::None
+                ],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        drop(Storage::open(&path).unwrap());
+        let storage = Storage::open(&path).unwrap();
+        let cards = storage.list_cards_by_deck("CET-4").unwrap();
+
+        assert_eq!(cards[0].tags, vec!["CET-4", "review"]);
+        assert_eq!(cards[1].tags, vec!["hard", "anki"]);
+    }
 }

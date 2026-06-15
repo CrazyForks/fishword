@@ -84,6 +84,7 @@ async function cardCount(deckId: number): Promise<number> {
 async function ensureDefaultDeck(defaultDeck: DefaultDeck, decks: DeckItem[]): Promise<DeckItem> {
   const deck = decks.find((item) => item.name === defaultDeck.name) ?? (await createDeck(defaultDeck));
   if ((await cardCount(deck.id)) === 0) {
+    // Keep the explicit create + --deck flow so bundled decks retain descriptions.
     await runFishwordText([
       "import",
       "jsonl",
