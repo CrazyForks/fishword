@@ -950,6 +950,54 @@ mod tests {
     }
 
     #[test]
+    fn test_import_cards_rolls_back_batch_on_write_error() {
+        let storage = open_temp();
+        let deck = storage.insert_deck("test", None).unwrap();
+        storage
+            .conn
+            .execute_batch(
+                "
+                CREATE TRIGGER reject_boom_import
+                BEFORE INSERT ON cards
+                WHEN NEW.word = 'boom'
+                BEGIN
+                    SELECT RAISE(ABORT, 'boom import rejected');
+                END;
+                ",
+            )
+            .unwrap();
+
+        let cards = vec![
+            ImportCard {
+                word: "first".to_string(),
+                language: "en".to_string(),
+                meanings: Vec::new(),
+                pronunciations: Vec::new(),
+                tags: Vec::new(),
+                source: None,
+            },
+            ImportCard {
+                word: "boom".to_string(),
+                language: "en".to_string(),
+                meanings: Vec::new(),
+                pronunciations: Vec::new(),
+                tags: Vec::new(),
+                source: None,
+            },
+        ];
+
+        let result = storage.import_cards(deck.id, &cards, DuplicateStrategy::Merge);
+
+        assert!(result.is_err());
+        assert_eq!(storage.card_count_by_deck(deck.id).unwrap(), 0);
+        let card_state_count: i64 = storage
+            .conn
+            .query_row("SELECT COUNT(*) FROM card_state", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(card_state_count, 0);
+    }
+
+    #[test]
     fn test_list_cards_empty_deck() {
         let storage = open_temp();
         storage.insert_deck("empty", None).unwrap();
