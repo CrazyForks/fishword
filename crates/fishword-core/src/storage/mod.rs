@@ -48,6 +48,7 @@ impl Storage {
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         conn.execute_batch(MIGRATION)?;
         ensure_card_metadata_columns(&conn)?;
+        remove_empty_card_tags(&conn)?;
         Ok(Self { conn })
     }
 
@@ -338,42 +339,24 @@ impl Storage {
         let deck = self
             .get_deck_by_id(deck_id)?
             .ok_or_else(|| Error::NotFound(format!("deck id {deck_id}")))?;
-        let mut summary = ImportSummary {
-            deck_id: deck.id,
-            deck_name: deck.name,
-            input_count: cards.len(),
-            inserted: 0,
-            updated: 0,
-            skipped: 0,
-            merged: 0,
-        };
-
         let tx = self.conn.unchecked_transaction()?;
-
-        for import_card in cards {
-            let existing = find_first_card_by_word_on(&tx, deck.id, &import_card.word)?;
-            match (existing, duplicate_strategy) {
-                (None, _) | (Some(_), DuplicateStrategy::Keep) => {
-                    insert_card_with_metadata_on(&tx, deck.id, import_card)?;
-                    summary.inserted += 1;
-                }
-                (Some(_), DuplicateStrategy::Skip) => {
-                    summary.skipped += 1;
-                }
-                (Some(existing), DuplicateStrategy::Overwrite) => {
-                    update_card_from_import_on(&tx, existing.id, import_card)?;
-                    summary.updated += 1;
-                }
-                (Some(existing), DuplicateStrategy::Merge) => {
-                    let merged = merge_import_card(&existing, import_card);
-                    update_card_from_import_on(&tx, existing.id, &merged)?;
-                    summary.merged += 1;
-                }
-            }
-        }
-
+        let summary = import_cards_on(&tx, &deck, cards, duplicate_strategy)?;
         tx.commit()?;
         Ok(summary)
+    }
+
+    pub fn import_cards_into_new_deck(
+        &self,
+        name: &str,
+        description: Option<&str>,
+        cards: &[ImportCard],
+        duplicate_strategy: DuplicateStrategy,
+    ) -> Result<(Deck, ImportSummary)> {
+        let tx = self.conn.unchecked_transaction()?;
+        let deck = insert_deck_on(&tx, name, description)?;
+        let summary = import_cards_on(&tx, &deck, cards, duplicate_strategy)?;
+        tx.commit()?;
+        Ok((deck, summary))
     }
 
     pub fn get_card_by_id(&self, id: i64) -> Result<Option<Card>> {
@@ -689,6 +672,84 @@ impl Storage {
     }
 }
 
+fn insert_deck_on(conn: &Connection, name: &str, description: Option<&str>) -> Result<Deck> {
+    match conn.execute(
+        "INSERT INTO decks (name, description) VALUES (?1, ?2)",
+        params![name, description],
+    ) {
+        Ok(_) => {}
+        Err(rusqlite::Error::SqliteFailure(err, _))
+            if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+        {
+            return Err(Error::AlreadyExists(format!("deck already exists: {name}")));
+        }
+        Err(e) => return Err(Error::Db(e)),
+    }
+    let id = conn.last_insert_rowid();
+    get_deck_by_id_on(conn, id)?.ok_or_else(|| Error::NotFound(format!("deck id {id}")))
+}
+
+fn get_deck_by_id_on(conn: &Connection, id: i64) -> Result<Option<Deck>> {
+    let result = conn.query_row(
+        "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
+        params![id],
+        |row| {
+            Ok(Deck {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        },
+    );
+    match result {
+        Ok(deck) => Ok(Some(deck)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(Error::Db(e)),
+    }
+}
+
+fn import_cards_on(
+    conn: &Connection,
+    deck: &Deck,
+    cards: &[ImportCard],
+    duplicate_strategy: DuplicateStrategy,
+) -> Result<ImportSummary> {
+    let mut summary = ImportSummary {
+        deck_id: deck.id,
+        deck_name: deck.name.clone(),
+        input_count: cards.len(),
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        merged: 0,
+    };
+
+    for import_card in cards {
+        let existing = find_first_card_by_word_on(conn, deck.id, &import_card.word)?;
+        match (existing, duplicate_strategy) {
+            (None, _) | (Some(_), DuplicateStrategy::Keep) => {
+                insert_card_with_metadata_on(conn, deck.id, import_card)?;
+                summary.inserted += 1;
+            }
+            (Some(_), DuplicateStrategy::Skip) => {
+                summary.skipped += 1;
+            }
+            (Some(existing), DuplicateStrategy::Overwrite) => {
+                update_card_from_import_on(conn, existing.id, import_card)?;
+                summary.updated += 1;
+            }
+            (Some(existing), DuplicateStrategy::Merge) => {
+                let merged = merge_import_card(&existing, import_card);
+                update_card_from_import_on(conn, existing.id, &merged)?;
+                summary.merged += 1;
+            }
+        }
+    }
+
+    Ok(summary)
+}
+
 fn insert_card_with_metadata_on(
     conn: &Connection,
     deck_id: i64,
@@ -895,6 +956,33 @@ fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
     Ok(columns)
 }
 
+fn remove_empty_card_tags(conn: &Connection) -> Result<()> {
+    let rows = {
+        let mut stmt = conn.prepare("SELECT id, tags FROM cards")?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+
+    for (id, tags_json) in rows {
+        let mut tags = serde_json::from_str::<Vec<String>>(&tags_json)?;
+        let original_len = tags.len();
+        tags.retain(|tag| !tag.is_empty());
+        if tags.len() != original_len {
+            let cleaned = serde_json::to_string(&tags)?;
+            conn.execute(
+                "UPDATE cards SET tags = ?1 WHERE id = ?2",
+                params![cleaned, id],
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1008,6 +1096,44 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM card_state", [], |row| row.get(0))
             .unwrap();
         assert_eq!(card_state_count, 0);
+    }
+
+    #[test]
+    fn test_import_cards_into_new_deck_rolls_back_deck_on_write_error() {
+        let storage = open_temp();
+        storage
+            .conn
+            .execute_batch(
+                "
+                CREATE TRIGGER reject_boom_new_deck_import
+                BEFORE INSERT ON cards
+                WHEN NEW.word = 'boom'
+                BEGIN
+                    SELECT RAISE(ABORT, 'boom import rejected');
+                END;
+                ",
+            )
+            .unwrap();
+
+        let cards = vec![ImportCard {
+            word: "boom".to_string(),
+            language: "en".to_string(),
+            meanings: Vec::new(),
+            pronunciations: Vec::new(),
+            tags: Vec::new(),
+            source: None,
+        }];
+
+        let result =
+            storage.import_cards_into_new_deck("new-deck", None, &cards, DuplicateStrategy::Merge);
+
+        assert!(result.is_err());
+        assert!(storage.get_deck_by_name("new-deck").unwrap().is_none());
+        let card_count: i64 = storage
+            .conn
+            .query_row("SELECT COUNT(*) FROM cards", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(card_count, 0);
     }
 
     #[test]

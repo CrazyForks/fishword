@@ -102,3 +102,16 @@ fn import_target_must_be_name_or_deck() {
         ],
     ));
 }
+
+#[test]
+fn import_with_name_rejects_existing_deck() {
+    let home = temp_home("import-name-existing");
+    let csv = write_csv(&home);
+
+    assert_success(fishword(&home, &["init"]));
+    assert_success(fishword(&home, &["deck", "create", "Existing"]));
+    assert_failure(fishword(
+        &home,
+        &["import", "csv", csv.to_str().unwrap(), "--name", "Existing"],
+    ));
+}

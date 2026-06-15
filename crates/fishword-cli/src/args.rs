@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "fishword", about = "Vocabulary flashcard CLI", version)]
@@ -106,12 +106,21 @@ pub enum ImportCmd {
 }
 
 #[derive(Parser)]
+#[command(group(
+    ArgGroup::new("target")
+        .args(["deck", "name"])
+        .required(true)
+        .multiple(false)
+))]
 pub struct ImportArgs {
     /// Input file path.
     pub path: PathBuf,
-    /// Deck id (numeric, from `deck list`). Deck must already exist.
+    /// Deck id (numeric, from `deck list`). Use this to import into an existing deck.
     #[arg(long)]
-    pub deck: i64,
+    pub deck: Option<i64>,
+    /// New deck name. Use this to create a deck and import into it.
+    #[arg(long)]
+    pub name: Option<String>,
     /// Duplicate strategy: merge, skip, overwrite, keep.
     #[arg(long, default_value = "merge")]
     pub duplicates: String,

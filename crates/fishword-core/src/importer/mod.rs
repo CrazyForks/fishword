@@ -117,7 +117,7 @@ pub fn import_qwerty_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> 
     let words: Vec<QwertyWord> = serde_json::from_str(text)?;
     let cards = words
         .into_iter()
-        .map(|word| qwerty_word_to_card(word, deck_id))
+        .map(qwerty_word_to_card)
         .collect::<Result<Vec<_>>>()?;
     Ok(ImportDeck {
         deck_id: deck_id.to_string(),
@@ -147,7 +147,7 @@ pub fn import_csv_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> Res
             .zip(values)
             .collect::<HashMap<_, _>>();
         cards.push(
-            csv_row_to_card(&row, deck_id)
+            csv_row_to_card(&row)
                 .map_err(|error| Error::InvalidInput(format!("CSV row {}: {error}", index + 2)))?,
         );
     }
@@ -176,7 +176,7 @@ pub fn import_jsonl_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> R
         }
         let card: DeckCardV1 = serde_json::from_str(line)
             .map_err(|error| Error::InvalidInput(format!("JSONL line {}: {error}", index + 1)))?;
-        cards.push(deck_v1_to_import_card(card, deck_id)?);
+        cards.push(deck_v1_to_import_card(card)?);
     }
     Ok(ImportDeck {
         deck_id: deck_id.to_string(),
@@ -229,7 +229,7 @@ pub fn import_anki_tsv_str(
                     }]
                 })
                 .unwrap_or_default(),
-            tags: vec![deck_id.to_string(), "anki".to_string()],
+            tags: vec!["anki".to_string()],
             source: Some(Source {
                 name: "anki-tsv".to_string(),
                 license: None,
@@ -243,7 +243,7 @@ pub fn import_anki_tsv_str(
     })
 }
 
-fn qwerty_word_to_card(word: QwertyWord, deck_id: &str) -> Result<ImportCard> {
+fn qwerty_word_to_card(word: QwertyWord) -> Result<ImportCard> {
     if word.name.trim().is_empty() {
         return Err(Error::InvalidInput("Qwerty word name is empty".to_string()));
     }
@@ -277,7 +277,7 @@ fn qwerty_word_to_card(word: QwertyWord, deck_id: &str) -> Result<ImportCard> {
         language: default_language(),
         meanings,
         pronunciations,
-        tags: vec![deck_id.to_string()],
+        tags: Vec::new(),
         source: Some(Source {
             name: "qwerty-learner".to_string(),
             license: Some("GPL-3.0".to_string()),
@@ -285,7 +285,7 @@ fn qwerty_word_to_card(word: QwertyWord, deck_id: &str) -> Result<ImportCard> {
     })
 }
 
-fn csv_row_to_card(row: &HashMap<String, String>, deck_id: &str) -> Result<ImportCard> {
+fn csv_row_to_card(row: &HashMap<String, String>) -> Result<ImportCard> {
     let word = first_value(row, &["word", "term", "name"])
         .ok_or_else(|| Error::InvalidInput("missing word/term/name column".to_string()))?;
     let meaning =
@@ -295,8 +295,8 @@ fn csv_row_to_card(row: &HashMap<String, String>, deck_id: &str) -> Result<Impor
     let source_name = first_value(row, &["source"]).unwrap_or("csv");
     let source_license = first_value(row, &["license"]).map(str::to_string);
     let tags = first_value(row, &["tags"])
-        .map(|value| split_tags(value, deck_id))
-        .unwrap_or_else(|| vec![deck_id.to_string()]);
+        .map(split_tags)
+        .unwrap_or_default();
 
     let mut pronunciations = Vec::new();
     for key in ["pronunciation", "phone", "usphone", "ukphone"] {
@@ -329,7 +329,7 @@ fn csv_row_to_card(row: &HashMap<String, String>, deck_id: &str) -> Result<Impor
     })
 }
 
-fn deck_v1_to_import_card(card: DeckCardV1, deck_id: &str) -> Result<ImportCard> {
+fn deck_v1_to_import_card(card: DeckCardV1) -> Result<ImportCard> {
     if card.word.trim().is_empty() {
         return Err(Error::InvalidInput(
             "deck.v1 card word is empty".to_string(),
@@ -359,17 +359,12 @@ fn deck_v1_to_import_card(card: DeckCardV1, deck_id: &str) -> Result<ImportCard>
             });
         }
     }
-    let tags = if card.tags.is_empty() {
-        vec![deck_id.to_string()]
-    } else {
-        card.tags
-    };
     Ok(ImportCard {
         word: card.word,
         language: card.language,
         meanings,
         pronunciations,
-        tags,
+        tags: card.tags,
         source: card.source,
     })
 }
@@ -410,17 +405,13 @@ fn first_value<'a>(row: &'a HashMap<String, String>, keys: &[&str]) -> Option<&'
         .filter(|value| !value.trim().is_empty())
 }
 
-fn split_tags(value: &str, deck_id: &str) -> Vec<String> {
-    let mut tags = value
+fn split_tags(value: &str) -> Vec<String> {
+    value
         .split([';', ','])
         .map(str::trim)
         .filter(|tag| !tag.is_empty())
         .map(str::to_string)
-        .collect::<Vec<_>>();
-    if !tags.iter().any(|tag| tag == deck_id) {
-        tags.insert(0, deck_id.to_string());
-    }
-    tags
+        .collect::<Vec<_>>()
 }
 
 fn default_language() -> String {
