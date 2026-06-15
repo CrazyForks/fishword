@@ -7,6 +7,10 @@
 
 Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm) 算法调度复习，数据完全存储在本地 SQLite，无需联网。你可以通过 CLI 直接使用，也可以通过集成接入到你的开发环境中。
 
+Fishword 面向 Vibe Coding 场景：当你在 Pi.dev 里等待 AI 回复、命令执行或测试完成时，可以直接在开发环境中顺手复习单词。
+
+> 代码让 AI 慢慢生成，单词我先偷偷记几个。
+
 本项目认可并感谢 [LINUX DO](https://linux.do/) 社区。
 
 ---

@@ -5,3 +5,4 @@ dist
 /internal
 packages/pi-extension/dist/
 packages/pi-extension/assets/
+*.DS_Store
