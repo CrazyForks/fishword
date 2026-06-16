@@ -52,7 +52,7 @@ cargo install --path crates/fishword-cli
 fishword init
 fishword deck create "CET-4"
 # 用返回的 id（例如 1）导入
-fishword import qwerty crates/fishword-core/fixtures/qwerty_cet4_sample.json --deck 1
+fishword import jsonl crates/fishword-core/fixtures/deck_v1_sample.jsonl --deck 1
 fishword current
 fishword rate good
 ```
@@ -90,8 +90,8 @@ export FW_HOME=/tmp/fishword-dev
 HOME=$FW_HOME cargo run -p fishword-cli -- init
 HOME=$FW_HOME cargo run -p fishword-cli -- deck create "CET-4"
 # 用返回的 id（例如 1）导入
-HOME=$FW_HOME cargo run -p fishword-cli -- import qwerty \
-  crates/fishword-core/fixtures/qwerty_cet4_sample.json --deck 1
+HOME=$FW_HOME cargo run -p fishword-cli -- import jsonl \
+  crates/fishword-core/fixtures/deck_v1_sample.jsonl --deck 1
 HOME=$FW_HOME cargo run -p fishword-cli -- current --json
 HOME=$FW_HOME cargo run -p fishword-cli -- rate good --json
 ```

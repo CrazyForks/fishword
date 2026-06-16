@@ -9,7 +9,7 @@ future terminal/editor integrations.
 The project currently supports:
 
 - SQLite-backed decks, cards, card state, settings, and review logs
-- Importing Qwerty Learner JSON, fishword deck JSONL, CSV, and Anki TSV
+- Importing fishword.deck.v1 JSONL (the only supported import format; other sources are converted to it offline, e.g. via `scripts/convert-qwerty-decks.mjs`)
 - kajweb/dict JSONL dictionaries converted into Fishword's deck.v1 JSONL format
 - FSRS-based review scheduling
 - Card selection through `current`; `rate` records a review and returns the next card in JSON output
@@ -105,7 +105,7 @@ Contains reusable domain logic:
 - `card`: card, meaning, pronunciation, review state, rating, and source models
 - `deck`: deck model
 - `storage`: SQLite persistence, migrations, settings, current-card state, review logs
-- `importer`: Qwerty JSON, deck.v1 JSONL, CSV, and Anki TSV importers
+- `importer`: deck.v1 JSONL importer (the only supported runtime import format)
 - `scheduler`: FSRS review scheduling
 - `selector`: current-card and next-card selection policy
 - `protocol`: stable JSON DTOs for frontend consumers

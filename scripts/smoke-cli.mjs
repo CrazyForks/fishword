@@ -40,8 +40,8 @@ try {
 
   run([
     "import",
-    "qwerty",
-    "crates/fishword-core/fixtures/qwerty_cet4_sample.json",
+    "jsonl",
+    "crates/fishword-core/fixtures/deck_v1_sample.jsonl",
     "--name",
     "smoke",
   ]);

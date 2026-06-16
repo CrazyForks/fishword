@@ -76,7 +76,7 @@ pi install npm:@fishword/pi-extension
 
 ![词库选择器界面](docs/images/screenshot-deck.png)
 
-选中后立即生效，词卡和统计均切换到对应词库。也可以通过 `/fw-deck` 导入自定义词汇文件（支持 CSV / JSONL / Anki TSV 格式）。
+选中后立即生效，词卡和统计均切换到对应词库。也可以通过 CLI 的 `fishword import jsonl` 导入自定义词汇文件（仅支持 fishword.deck.v1 JSONL 格式）。
 
 ---
 

@@ -100,14 +100,8 @@ pub enum CardCmd {
 
 #[derive(Subcommand)]
 pub enum ImportCmd {
-    /// Import Qwerty Learner JSON.
-    Qwerty(ImportArgs),
-    /// Import minimal CSV.
-    Csv(ImportArgs),
     /// Import fishword.deck.v1 JSONL.
     Jsonl(ImportArgs),
-    /// Import Anki exported TSV.
-    AnkiTsv(ImportArgs),
 }
 
 #[derive(Parser)]

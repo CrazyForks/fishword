@@ -18,9 +18,13 @@ fn temp_home(test_name: &str) -> PathBuf {
     path
 }
 
-fn write_csv(home: &Path) -> PathBuf {
-    let path = home.join("words.csv");
-    fs::write(&path, "word,meaning\ncancel,取消\n").unwrap();
+fn write_jsonl(home: &Path) -> PathBuf {
+    let path = home.join("words.jsonl");
+    fs::write(
+        &path,
+        r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#,
+    )
+    .unwrap();
     path
 }
 
@@ -54,12 +58,18 @@ fn assert_failure(output: std::process::Output) {
 #[test]
 fn import_with_name_creates_deck_and_imports_cards() {
     let home = temp_home("import-name");
-    let csv = write_csv(&home);
+    let jsonl = write_jsonl(&home);
 
     assert_success(fishword(&home, &["init"]));
     let output = assert_success(fishword(
         &home,
-        &["import", "csv", csv.to_str().unwrap(), "--name", "Imported"],
+        &[
+            "import",
+            "jsonl",
+            jsonl.to_str().unwrap(),
+            "--name",
+            "Imported",
+        ],
     ));
     let decks = assert_success(fishword(&home, &["deck", "list"]));
 
@@ -70,13 +80,13 @@ fn import_with_name_creates_deck_and_imports_cards() {
 #[test]
 fn import_with_deck_still_imports_into_existing_deck() {
     let home = temp_home("import-deck");
-    let csv = write_csv(&home);
+    let jsonl = write_jsonl(&home);
 
     assert_success(fishword(&home, &["init"]));
     assert_success(fishword(&home, &["deck", "create", "Existing"]));
     let output = assert_success(fishword(
         &home,
-        &["import", "csv", csv.to_str().unwrap(), "--deck", "1"],
+        &["import", "jsonl", jsonl.to_str().unwrap(), "--deck", "1"],
     ));
 
     assert!(output.contains("Imported deck=Existing input=1 inserted=1"));
@@ -85,16 +95,19 @@ fn import_with_deck_still_imports_into_existing_deck() {
 #[test]
 fn import_target_must_be_name_or_deck() {
     let home = temp_home("import-target");
-    let csv = write_csv(&home);
+    let jsonl = write_jsonl(&home);
 
     assert_success(fishword(&home, &["init"]));
-    assert_failure(fishword(&home, &["import", "csv", csv.to_str().unwrap()]));
+    assert_failure(fishword(
+        &home,
+        &["import", "jsonl", jsonl.to_str().unwrap()],
+    ));
     assert_failure(fishword(
         &home,
         &[
             "import",
-            "csv",
-            csv.to_str().unwrap(),
+            "jsonl",
+            jsonl.to_str().unwrap(),
             "--deck",
             "1",
             "--name",
@@ -106,12 +119,18 @@ fn import_target_must_be_name_or_deck() {
 #[test]
 fn import_with_name_rejects_existing_deck() {
     let home = temp_home("import-name-existing");
-    let csv = write_csv(&home);
+    let jsonl = write_jsonl(&home);
 
     assert_success(fishword(&home, &["init"]));
     assert_success(fishword(&home, &["deck", "create", "Existing"]));
     assert_failure(fishword(
         &home,
-        &["import", "csv", csv.to_str().unwrap(), "--name", "Existing"],
+        &[
+            "import",
+            "jsonl",
+            jsonl.to_str().unwrap(),
+            "--name",
+            "Existing",
+        ],
     ));
 }

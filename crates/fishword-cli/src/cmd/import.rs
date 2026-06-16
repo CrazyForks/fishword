@@ -4,10 +4,7 @@ use anyhow::{Context, Result};
 use fishword_core::{
     deck::Deck,
     error::Error as CoreError,
-    importer::{
-        import_anki_tsv_file, import_csv_file, import_jsonl_file, import_qwerty_file,
-        DuplicateStrategy,
-    },
+    importer::{import_jsonl_file, DuplicateStrategy},
     protocol::{ImportResponse, IMPORT_SCHEMA},
 };
 
@@ -17,29 +14,10 @@ use crate::{
 };
 
 pub fn cmd_import(command: ImportCmd) -> Result<()> {
-    let (args, cards) = match command {
-        ImportCmd::Qwerty(args) => {
-            let deck = import_qwerty_file(&args.path, "", None)
-                .with_context(|| format!("failed to parse {}", args.path.display()))?;
-            (args, deck.cards)
-        }
-        ImportCmd::Csv(args) => {
-            let deck = import_csv_file(&args.path, "", None)
-                .with_context(|| format!("failed to parse {}", args.path.display()))?;
-            (args, deck.cards)
-        }
-        ImportCmd::Jsonl(args) => {
-            let deck = import_jsonl_file(&args.path, "", None)
-                .with_context(|| format!("failed to parse {}", args.path.display()))?;
-            (args, deck.cards)
-        }
-        ImportCmd::AnkiTsv(args) => {
-            let deck = import_anki_tsv_file(&args.path, "", None)
-                .with_context(|| format!("failed to parse {}", args.path.display()))?;
-            (args, deck.cards)
-        }
-    };
-    persist_import(args, cards)
+    let ImportCmd::Jsonl(args) = command;
+    let deck = import_jsonl_file(&args.path, "", None)
+        .with_context(|| format!("failed to parse {}", args.path.display()))?;
+    persist_import(args, deck.cards)
 }
 
 fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCard>) -> Result<()> {
