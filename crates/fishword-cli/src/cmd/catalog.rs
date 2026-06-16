@@ -86,7 +86,7 @@ fn catalog_list(json: bool) -> Result<()> {
             decks,
         });
     }
-    println!("{:<24} {:<32} {:>6}  {}", "ID", "Name", "Words", "Tags");
+    println!("{:<24} {:<32} {:>6}  Tags", "ID", "Name", "Words");
     println!("{}", "-".repeat(72));
     for e in &catalog.decks {
         println!(
