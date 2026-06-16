@@ -1,10 +1,10 @@
 {
   "schema": "fishword.catalog.v1",
-  "updated_at": "2026-06-16T08:21:49.074Z",
+  "updated_at": "2026-06-16T08:30:15.634Z",
   "decks": [
     {
       "id": "ielts-qwerty",
-      "name": "IELTS (Qwerty Learner)",
+      "name": "IELTS",
       "description": "雅思核心词汇，来自 Qwerty Learner",
       "language": "en",
       "word_count": 3575,
@@ -22,7 +22,7 @@
     },
     {
       "id": "gre-qwerty",
-      "name": "GRE (Qwerty Learner)",
+      "name": "GRE",
       "description": "GRE 核心词汇，来自 Qwerty Learner",
       "language": "en",
       "word_count": 6515,
@@ -40,7 +40,7 @@
     },
     {
       "id": "sat-qwerty",
-      "name": "SAT (Qwerty Learner)",
+      "name": "SAT",
       "description": "SAT 核心词汇，来自 Qwerty Learner",
       "language": "en",
       "word_count": 4464,
