@@ -1,43 +1,7 @@
 {
   "schema": "fishword.catalog.v1",
-  "updated_at": "2026-06-16T08:09:38.350Z",
+  "updated_at": "2026-06-16T08:21:49.074Z",
   "decks": [
-    {
-      "id": "cet4-qwerty",
-      "name": "CET-4 (Qwerty Learner)",
-      "description": "大学英语四级核心词汇，来自 Qwerty Learner",
-      "language": "en",
-      "word_count": 2607,
-      "tags": [
-        "cet4",
-        "exam",
-        "zh"
-      ],
-      "source": {
-        "name": "qwerty-learner",
-        "license": "GPL-3.0"
-      },
-      "url": "https://chenggou1.github.io/fishword/catalog/cet4-qwerty.jsonl",
-      "size_bytes": 669371
-    },
-    {
-      "id": "cet6-qwerty",
-      "name": "CET-6 (Qwerty Learner)",
-      "description": "大学英语六级核心词汇，来自 Qwerty Learner",
-      "language": "en",
-      "word_count": 2345,
-      "tags": [
-        "cet6",
-        "exam",
-        "zh"
-      ],
-      "source": {
-        "name": "qwerty-learner",
-        "license": "GPL-3.0"
-      },
-      "url": "https://chenggou1.github.io/fishword/catalog/cet6-qwerty.jsonl",
-      "size_bytes": 635119
-    },
     {
       "id": "ielts-qwerty",
       "name": "IELTS (Qwerty Learner)",
@@ -55,24 +19,6 @@
       },
       "url": "https://chenggou1.github.io/fishword/catalog/ielts-qwerty.jsonl",
       "size_bytes": 908443
-    },
-    {
-      "id": "toefl-qwerty",
-      "name": "TOEFL (Qwerty Learner)",
-      "description": "托福核心词汇，来自 Qwerty Learner",
-      "language": "en",
-      "word_count": 4264,
-      "tags": [
-        "toefl",
-        "exam",
-        "zh"
-      ],
-      "source": {
-        "name": "qwerty-learner",
-        "license": "GPL-3.0"
-      },
-      "url": "https://chenggou1.github.io/fishword/catalog/toefl-qwerty.jsonl",
-      "size_bytes": 1094144
     },
     {
       "id": "gre-qwerty",
