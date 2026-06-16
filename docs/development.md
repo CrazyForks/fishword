@@ -33,7 +33,7 @@ cd fishword
 pnpm install
 
 # 编译 Rust CLI（debug 模式）
-pnpm dev:cli
+pnpm dev:rust
 ```
 
 ---
@@ -105,9 +105,9 @@ HOME=$FW_HOME cargo run -p fishword-cli -- rate good --json
 pnpm test:rust
 
 # 端到端冒烟测试（先编译再跑）
-pnpm dev:cli && pnpm smoke:cli
+pnpm dev:rust && pnpm smoke:rust
 
-# 全量检查（格式 + lint + 测试 + 冒烟）
+# 全量检查（格式检查 + lint + 测试 + 冒烟 + Pi extension 类型检查）
 pnpm check
 ```
 
@@ -119,10 +119,10 @@ pnpm check
 
 ```bash
 # 1. 编译最新 CLI
-pnpm dev:cli
+pnpm dev:rust
 
 # 2. 编译 pi-extension（esbuild 打包）
-pnpm --filter @fishword/pi-extension run build
+pnpm dev:pi
 
 # 3. 用 --extension 临时加载（不需要安装到 Pi）
 pi --extension ./packages/pi-extension/dist/index.js
@@ -144,9 +144,20 @@ git push origin v0.1.0
 ## 常用命令速查
 
 ```bash
-pnpm dev:cli        # 编译 debug CLI
+pnpm dev:rust       # 编译 debug Rust CLI
+pnpm dev:pi         # 编译 Pi extension
+pnpm build          # 编译 Rust workspace 和 Pi extension
+pnpm build:rust     # 编译 Rust workspace
+pnpm build:pi       # 编译 Pi extension
+pnpm test           # Rust 单元测试 + CLI 冒烟测试
 pnpm test:rust      # Rust 单元测试
-pnpm smoke:cli      # 端到端冒烟测试
-pnpm check          # 全量检查
+pnpm lint           # Rust clippy
+pnpm format         # 格式化所有模块
+pnpm format:rust    # 格式化 Rust workspace
+pnpm format:check   # 检查所有模块格式
+pnpm format:check:rust # 检查 Rust workspace 格式
+pnpm smoke:rust     # Rust CLI 端到端冒烟测试
+pnpm check:pi       # Pi extension TypeScript 检查
+pnpm check          # 全量检查，不写入文件
 cargo test          # 同 test:rust（直接用 cargo 也行）
 ```

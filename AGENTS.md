@@ -215,9 +215,10 @@ HOME=/private/tmp/fishword-test ./target/debug/fishword init
 Useful verification commands:
 
 ```bash
-cargo test
-cargo clippy --all-targets --all-features -- -D warnings
-cargo fmt --all -- --check
-pnpm check:pi-extension
-pnpm smoke:cli
+pnpm check
+pnpm format:check
+pnpm lint
+pnpm test
+pnpm check:pi
+pnpm smoke:rust
 ```

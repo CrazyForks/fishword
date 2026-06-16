@@ -63,7 +63,7 @@ export function resolveFishwordPath() {
     [
       `Cannot find fishword CLI for ${platformName}.`,
       `Expected ${expected}.`,
-      "For local development, run `pnpm dev:cli` from the repository root.",
+      "For local development, run `pnpm dev:rust` from the repository root.",
       "You can also set FISHWORD_CLI_PATH to a custom fishword binary."
     ].join(" ")
   );

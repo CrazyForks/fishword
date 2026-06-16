@@ -4,15 +4,23 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "build": "pnpm run build:rust && pnpm run build:pi",
+    "test": "pnpm run test:rust && pnpm run smoke:rust",
+    "lint": "pnpm run lint:rust",
+    "smoke": "pnpm run smoke:rust",
+    "format": "pnpm run format:rust",
+    "format:check": "pnpm run format:check:rust",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run test && pnpm run check:pi",
+    "dev:rust": "cargo build -p fishword-cli",
     "build:rust": "cargo build --workspace",
-    "dev:cli": "cargo build -p fishword-cli",
     "test:rust": "cargo test",
     "lint:rust": "cargo clippy --all-targets --all-features -- -D warnings",
-    "format": "cargo fmt --all",
-    "format:check": "cargo fmt --all -- --check",
-    "smoke:cli": "node scripts/smoke-cli.mjs",
-    "check:pi-extension": "tsc -p packages/pi-extension/tsconfig.json --noEmit",
-    "check": "pnpm format && pnpm lint:rust && pnpm test:rust && pnpm smoke:cli"
+    "smoke:rust": "node scripts/smoke-cli.mjs",
+    "format:rust": "cargo fmt --all",
+    "format:check:rust": "cargo fmt --all -- --check",
+    "dev:pi": "pnpm run build:pi",
+    "build:pi": "pnpm --filter @fishword/pi-extension run build",
+    "check:pi": "pnpm --filter @fishword/pi-extension run check"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

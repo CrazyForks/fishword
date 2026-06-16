@@ -94,7 +94,7 @@ try {
     throw new Error("deleted deck still appears in deck list");
   }
 
-  console.log(`smoke:cli ok (${current.card.term})`);
+  console.log(`smoke:rust ok (${current.card.term})`);
 } finally {
   rmSync(home, { recursive: true, force: true });
 }
