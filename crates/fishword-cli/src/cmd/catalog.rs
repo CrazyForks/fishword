@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use fishword_core::{
+    card::Source,
     error::Error as CoreError,
     importer::{import_jsonl_str, DuplicateStrategy},
     protocol::{
@@ -40,6 +41,8 @@ struct CatalogEntryJson {
     word_count: u64,
     #[serde(default)]
     tags: Vec<String>,
+    #[serde(default)]
+    source: Option<Source>,
     url: String,
     #[serde(default)]
     size_bytes: u64,
@@ -77,6 +80,7 @@ fn catalog_list(json: bool) -> Result<()> {
                 language: e.language,
                 word_count: e.word_count,
                 tags: e.tags,
+                source: e.source,
                 url: e.url,
                 size_bytes: e.size_bytes,
             })
@@ -86,14 +90,19 @@ fn catalog_list(json: bool) -> Result<()> {
             decks,
         });
     }
-    println!("{:<24} {:<32} {:>6}  Tags", "ID", "Name", "Words");
+    println!(
+        "{:<16} {:<12} {:>6}  {:<18} Tags",
+        "ID", "Name", "Words", "Source"
+    );
     println!("{}", "-".repeat(72));
     for e in &catalog.decks {
+        let source = e.source.as_ref().map(|s| s.name.as_str()).unwrap_or("-");
         println!(
-            "{:<24} {:<32} {:>6}  {}",
+            "{:<16} {:<12} {:>6}  {:<18} {}",
             e.id,
             e.name,
             e.word_count,
+            source,
             e.tags.join(" ")
         );
     }

@@ -127,6 +127,7 @@ pub struct CatalogDeckEntry {
     pub language: String,
     pub word_count: u64,
     pub tags: Vec<String>,
+    pub source: Option<crate::card::Source>,
     pub url: String,
     pub size_bytes: u64,
 }
