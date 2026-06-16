@@ -1,6 +1,6 @@
 {
   "schema": "fishword.catalog.v1",
-  "updated_at": "2026-06-16T08:06:26.799Z",
+  "updated_at": "2026-06-16T08:09:38.350Z",
   "decks": [
     {
       "id": "cet4-qwerty",
@@ -143,6 +143,57 @@
       },
       "url": "https://chenggou1.github.io/fishword/catalog/oxford5000.jsonl",
       "size_bytes": 4363056
+    },
+    {
+      "id": "cet4",
+      "name": "CET-4",
+      "description": "大学英语四级词汇，含词性、例句",
+      "language": "en",
+      "word_count": 4544,
+      "tags": [
+        "cet4",
+        "exam",
+        "zh"
+      ],
+      "source": {
+        "name": "kajweb/dict"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/cet4.jsonl",
+      "size_bytes": 1235402
+    },
+    {
+      "id": "cet6",
+      "name": "CET-6",
+      "description": "大学英语六级词汇，含词性、例句",
+      "language": "en",
+      "word_count": 3992,
+      "tags": [
+        "cet6",
+        "exam",
+        "zh"
+      ],
+      "source": {
+        "name": "kajweb/dict"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/cet6.jsonl",
+      "size_bytes": 1111195
+    },
+    {
+      "id": "toefl",
+      "name": "TOEFL",
+      "description": "托福词汇，含词性、例句",
+      "language": "en",
+      "word_count": 10377,
+      "tags": [
+        "toefl",
+        "exam",
+        "zh"
+      ],
+      "source": {
+        "name": "kajweb/dict"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/toefl.jsonl",
+      "size_bytes": 2868648
     }
   ]
 }
