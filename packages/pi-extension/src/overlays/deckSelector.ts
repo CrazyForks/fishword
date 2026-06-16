@@ -2,8 +2,9 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
 import { SelectList, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { DeckItem } from "../types.ts";
+import { handleVisibilityShortcut, type VisibilityShortcutOptions } from "./visibilityShortcut.ts";
 
-type DeckSelectorOptions = {
+type DeckSelectorOptions = VisibilityShortcutOptions & {
   decks: DeckItem[];
   activeIndex: number;
   onSelect: (deck: DeckItem) => Promise<void>;
@@ -69,6 +70,7 @@ export function showDeckSelectorOverlay(ctx: ExtensionContext, options: DeckSele
           list.invalidate();
         },
         handleInput(keyData: string) {
+          if (handleVisibilityShortcut(keyData, options)) return;
           list.handleInput(keyData);
         },
       };

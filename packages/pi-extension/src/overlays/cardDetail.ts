@@ -4,11 +4,12 @@ import { Key, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import type { CardResponse, Rating } from "../types.ts";
 import { RATINGS } from "../types.ts";
 import { fitCell } from "../ui/text.ts";
+import { handleVisibilityShortcut, type VisibilityShortcutOptions } from "./visibilityShortcut.ts";
 
 const PANEL_WIDTH = 62;
 const DONE_MESSAGE = "今日词库已清空，给自己放个短假吧。";
 
-export type CardDetailOptions = {
+export type CardDetailOptions = VisibilityShortcutOptions & {
   response: CardResponse | null;
   onHandle: (handle: OverlayHandle) => void;
   onClose: () => void;
@@ -88,6 +89,7 @@ export function showCardDetailOverlay(ctx: ExtensionContext, options: CardDetail
       },
       invalidate() {},
       handleInput(keyData: string) {
+        if (handleVisibilityShortcut(keyData, options)) return;
         if (matchesKey(keyData, Key.escape)) {
           overlayHandle?.unfocus();
           done("close");

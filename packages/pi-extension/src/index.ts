@@ -222,6 +222,8 @@ export default function (pi: ExtensionAPI) {
     showStatsOverlay(ctx, {
       status: statusRes as StatusResponse,
       stats: statsRes as StatsResponse,
+      visibilityShortcut: HIDE_OR_SUMMON_KEY,
+      onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         statsOverlayHandle = handle;
         handle.setHidden(isFishwordHidden);
@@ -262,6 +264,8 @@ export default function (pi: ExtensionAPI) {
     showDeckSelectorOverlay(ctx, {
       decks,
       activeIndex: decks.findIndex((d) => d.active),
+      visibilityShortcut: HIDE_OR_SUMMON_KEY,
+      onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         deckSelectorHandle = handle;
         handle.setHidden(isFishwordHidden);
@@ -295,6 +299,8 @@ export default function (pi: ExtensionAPI) {
 
     showCardDetailOverlay(ctx, {
       response: currentCardResponse,
+      visibilityShortcut: HIDE_OR_SUMMON_KEY,
+      onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         cardDetailHandle = handle;
         handle.setHidden(isFishwordHidden);

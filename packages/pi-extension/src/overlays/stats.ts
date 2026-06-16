@@ -4,8 +4,9 @@ import { Key, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import type { StatsResponse, StatusResponse } from "../types.ts";
 import { drawTrendLine, ratingTotals } from "../ui/statsChart.ts";
 import { fitCell, formatPercent } from "../ui/text.ts";
+import { handleVisibilityShortcut, type VisibilityShortcutOptions } from "./visibilityShortcut.ts";
 
-type StatsOverlayOptions = {
+type StatsOverlayOptions = VisibilityShortcutOptions & {
   status: StatusResponse;
   stats: StatsResponse;
   onClose: () => void;
@@ -65,6 +66,7 @@ export function showStatsOverlay(ctx: ExtensionContext, options: StatsOverlayOpt
         },
         invalidate() {},
         handleInput(keyData: string) {
+          if (handleVisibilityShortcut(keyData, options)) return;
           if (keyData.toLowerCase() === "r") {
             done("refresh");
           } else if (matchesKey(keyData, Key.escape)) {
