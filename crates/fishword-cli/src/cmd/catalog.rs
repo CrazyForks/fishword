@@ -16,8 +16,7 @@ use crate::{
     util::{exit_json_error, open_storage, print_json},
 };
 
-const DEFAULT_CATALOG_URL: &str =
-    "https://chenggou1.github.io/fishword/catalog/catalog.json";
+const DEFAULT_CATALOG_URL: &str = "https://chenggou1.github.io/fishword/catalog/catalog.json";
 
 fn catalog_url() -> String {
     std::env::var("FISHWORD_CATALOG_URL").unwrap_or_else(|_| DEFAULT_CATALOG_URL.to_string())
@@ -130,24 +129,33 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
         .with_context(|| format!("failed to parse JSONL for deck '{deck_id}'"))?;
 
     let storage = open_storage()?;
-    let (db_deck, summary) =
-        match storage.import_cards_into_new_deck(&entry.name, None, &import_deck.cards, duplicate_strategy) {
-            Ok(result) => result,
-            Err(CoreError::AlreadyExists(_)) => {
-                // Deck already exists — find it by name and merge into it.
-                let existing = storage
-                    .list_decks()
-                    .context("failed to list decks")?
-                    .into_iter()
-                    .find(|d| d.name == entry.name)
-                    .ok_or_else(|| anyhow::anyhow!("deck '{}' already exists but could not be found", entry.name))?;
-                let s = storage
-                    .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
-                    .context("failed to import cards")?;
-                (existing, s)
-            }
-            Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
-        };
+    let (db_deck, summary) = match storage.import_cards_into_new_deck(
+        &entry.name,
+        None,
+        &import_deck.cards,
+        duplicate_strategy,
+    ) {
+        Ok(result) => result,
+        Err(CoreError::AlreadyExists(_)) => {
+            // Deck already exists — find it by name and merge into it.
+            let existing = storage
+                .list_decks()
+                .context("failed to list decks")?
+                .into_iter()
+                .find(|d| d.name == entry.name)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "deck '{}' already exists but could not be found",
+                        entry.name
+                    )
+                })?;
+            let s = storage
+                .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
+                .context("failed to import cards")?;
+            (existing, s)
+        }
+        Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
+    };
 
     // Auto-activate if no active deck is set.
     if storage
@@ -198,8 +206,7 @@ fn fetch_catalog(json_errors: bool) -> Result<CatalogJson> {
     let url = catalog_url();
     let body = fetch_url(&url, json_errors)
         .with_context(|| format!("failed to fetch catalog from {url}"))?;
-    serde_json::from_str::<CatalogJson>(&body)
-        .with_context(|| "failed to parse catalog JSON")
+    serde_json::from_str::<CatalogJson>(&body).with_context(|| "failed to parse catalog JSON")
 }
 
 fn fetch_url(url: &str, json_errors: bool) -> Result<String> {
