@@ -802,6 +802,7 @@ mod tests {
             name: "cet4".to_string(),
             description: Some("CET-4".to_string()),
             created_at: "2026-06-10 00:00:00".to_string(),
+            catalog_id: None,
         }
     }
 

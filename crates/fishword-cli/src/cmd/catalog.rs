@@ -138,32 +138,42 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
         .with_context(|| format!("failed to parse JSONL for deck '{deck_id}'"))?;
 
     let storage = open_storage()?;
-    let (db_deck, summary) = match storage.import_cards_into_new_deck(
-        &entry.name,
-        None,
-        &import_deck.cards,
-        duplicate_strategy,
-    ) {
-        Ok(result) => result,
-        Err(CoreError::AlreadyExists(_)) => {
-            // Deck already exists — find it by name and merge into it.
-            let existing = storage
-                .list_decks()
-                .context("failed to list decks")?
-                .into_iter()
-                .find(|d| d.name == entry.name)
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "deck '{}' already exists but could not be found",
-                        entry.name
-                    )
-                })?;
-            let s = storage
-                .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
-                .context("failed to import cards")?;
-            (existing, s)
+
+    // Match by catalog_id, not by display name — a deck previously fetched from this
+    // same catalog entry is safe to merge into. A deck that merely *happens* to share
+    // the display name (e.g. one the user created by hand) is never touched silently;
+    // see the AlreadyExists arm below for that case.
+    let (db_deck, summary) = if let Some(existing) = storage
+        .get_deck_by_catalog_id(deck_id)
+        .context("failed to look up existing catalog deck")?
+    {
+        let s = storage
+            .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
+            .context("failed to import cards")?;
+        (existing, s)
+    } else {
+        match storage.import_cards_into_new_deck_with_catalog_id(
+            &entry.name,
+            None,
+            &import_deck.cards,
+            duplicate_strategy,
+            Some(deck_id),
+        ) {
+            Ok(result) => result,
+            Err(CoreError::AlreadyExists(_)) => {
+                let message = format!(
+                    "A deck named '{}' already exists but was not created by `fishword catalog fetch {deck_id}`. \
+                     Refusing to merge into it to avoid mixing unrelated data. \
+                     Rename or delete that deck, then retry.",
+                    entry.name
+                );
+                if json {
+                    exit_json_error("deck_name_conflict", &message);
+                }
+                anyhow::bail!(message);
+            }
+            Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
         }
-        Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
     };
 
     // Auto-activate if no active deck is set.

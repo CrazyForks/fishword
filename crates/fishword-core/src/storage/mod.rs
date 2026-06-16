@@ -48,6 +48,7 @@ impl Storage {
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         conn.execute_batch(MIGRATION)?;
         ensure_card_metadata_columns(&conn)?;
+        ensure_deck_metadata_columns(&conn)?;
         remove_empty_card_tags(&conn)?;
         Ok(Self { conn })
     }
@@ -65,9 +66,9 @@ impl Storage {
     // ── Deck ──────────────────────────────────────────────────────────────
 
     pub fn list_decks(&self) -> Result<Vec<Deck>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, name, description, created_at FROM decks ORDER BY created_at")?;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, description, created_at, catalog_id FROM decks ORDER BY created_at",
+        )?;
         let decks = stmt
             .query_map([], |row| {
                 Ok(Deck {
@@ -75,6 +76,7 @@ impl Storage {
                     name: row.get(1)?,
                     description: row.get(2)?,
                     created_at: row.get(3)?,
+                    catalog_id: row.get(4)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -121,7 +123,7 @@ impl Storage {
         }
         let id = self.conn.last_insert_rowid();
         let deck = self.conn.query_row(
-            "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
+            "SELECT id, name, description, created_at, catalog_id FROM decks WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Deck {
@@ -129,6 +131,7 @@ impl Storage {
                     name: row.get(1)?,
                     description: row.get(2)?,
                     created_at: row.get(3)?,
+                    catalog_id: row.get(4)?,
                 })
             },
         )?;
@@ -137,7 +140,7 @@ impl Storage {
 
     pub fn get_deck_by_name(&self, name: &str) -> Result<Option<Deck>> {
         let result = self.conn.query_row(
-            "SELECT id, name, description, created_at FROM decks WHERE name = ?1",
+            "SELECT id, name, description, created_at, catalog_id FROM decks WHERE name = ?1",
             params![name],
             |row| {
                 Ok(Deck {
@@ -145,6 +148,7 @@ impl Storage {
                     name: row.get(1)?,
                     description: row.get(2)?,
                     created_at: row.get(3)?,
+                    catalog_id: row.get(4)?,
                 })
             },
         );
@@ -157,7 +161,7 @@ impl Storage {
 
     pub fn get_deck_by_id(&self, id: i64) -> Result<Option<Deck>> {
         let result = self.conn.query_row(
-            "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
+            "SELECT id, name, description, created_at, catalog_id FROM decks WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Deck {
@@ -165,6 +169,31 @@ impl Storage {
                     name: row.get(1)?,
                     description: row.get(2)?,
                     created_at: row.get(3)?,
+                    catalog_id: row.get(4)?,
+                })
+            },
+        );
+        match result {
+            Ok(deck) => Ok(Some(deck)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(Error::Db(e)),
+        }
+    }
+
+    /// Find the deck previously created by `fishword catalog fetch <catalog_id>`, if any.
+    /// Returns `None` for catalog ids that have never been fetched, including when a
+    /// manually created deck happens to share the same display name.
+    pub fn get_deck_by_catalog_id(&self, catalog_id: &str) -> Result<Option<Deck>> {
+        let result = self.conn.query_row(
+            "SELECT id, name, description, created_at, catalog_id FROM decks WHERE catalog_id = ?1",
+            params![catalog_id],
+            |row| {
+                Ok(Deck {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    created_at: row.get(3)?,
+                    catalog_id: row.get(4)?,
                 })
             },
         );
@@ -352,8 +381,28 @@ impl Storage {
         cards: &[ImportCard],
         duplicate_strategy: DuplicateStrategy,
     ) -> Result<(Deck, ImportSummary)> {
+        self.import_cards_into_new_deck_with_catalog_id(
+            name,
+            description,
+            cards,
+            duplicate_strategy,
+            None,
+        )
+    }
+
+    /// Same as [`Storage::import_cards_into_new_deck`], but tags the created deck with
+    /// `catalog_id` so a later `fishword catalog fetch` of the same catalog deck can find
+    /// it via [`Storage::get_deck_by_catalog_id`] instead of matching by display name.
+    pub fn import_cards_into_new_deck_with_catalog_id(
+        &self,
+        name: &str,
+        description: Option<&str>,
+        cards: &[ImportCard],
+        duplicate_strategy: DuplicateStrategy,
+        catalog_id: Option<&str>,
+    ) -> Result<(Deck, ImportSummary)> {
         let tx = self.conn.unchecked_transaction()?;
-        let deck = insert_deck_on(&tx, name, description)?;
+        let deck = insert_deck_on(&tx, name, description, catalog_id)?;
         let summary = import_cards_on(&tx, &deck, cards, duplicate_strategy)?;
         tx.commit()?;
         Ok((deck, summary))
@@ -672,10 +721,15 @@ impl Storage {
     }
 }
 
-fn insert_deck_on(conn: &Connection, name: &str, description: Option<&str>) -> Result<Deck> {
+fn insert_deck_on(
+    conn: &Connection,
+    name: &str,
+    description: Option<&str>,
+    catalog_id: Option<&str>,
+) -> Result<Deck> {
     match conn.execute(
-        "INSERT INTO decks (name, description) VALUES (?1, ?2)",
-        params![name, description],
+        "INSERT INTO decks (name, description, catalog_id) VALUES (?1, ?2, ?3)",
+        params![name, description, catalog_id],
     ) {
         Ok(_) => {}
         Err(rusqlite::Error::SqliteFailure(err, _))
@@ -691,7 +745,7 @@ fn insert_deck_on(conn: &Connection, name: &str, description: Option<&str>) -> R
 
 fn get_deck_by_id_on(conn: &Connection, id: i64) -> Result<Option<Deck>> {
     let result = conn.query_row(
-        "SELECT id, name, description, created_at FROM decks WHERE id = ?1",
+        "SELECT id, name, description, created_at, catalog_id FROM decks WHERE id = ?1",
         params![id],
         |row| {
             Ok(Deck {
@@ -699,6 +753,7 @@ fn get_deck_by_id_on(conn: &Connection, id: i64) -> Result<Option<Deck>> {
                 name: row.get(1)?,
                 description: row.get(2)?,
                 created_at: row.get(3)?,
+                catalog_id: row.get(4)?,
             })
         },
     );
@@ -948,6 +1003,21 @@ fn ensure_card_metadata_columns(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+fn ensure_deck_metadata_columns(conn: &Connection) -> Result<()> {
+    let columns = table_columns(conn, "decks")?;
+    if !columns.iter().any(|column| column == "catalog_id") {
+        conn.execute("ALTER TABLE decks ADD COLUMN catalog_id TEXT", [])?;
+    }
+    // SQLite treats multiple NULLs as distinct for UNIQUE constraints, so manually
+    // created decks (catalog_id = NULL) never collide here; only two decks claiming
+    // the same non-null catalog id would.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_decks_catalog_id ON decks(catalog_id)",
+        [],
+    )?;
+    Ok(())
+}
+
 fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
     let columns = stmt
@@ -1011,6 +1081,50 @@ mod tests {
         let decks = storage.list_decks().unwrap();
         assert_eq!(decks.len(), 1);
         assert_eq!(decks[0].name, "cet4");
+        assert_eq!(decks[0].catalog_id, None);
+    }
+
+    #[test]
+    fn test_catalog_id_round_trips_and_avoids_name_collision() {
+        let storage = open_temp();
+
+        // A manually created deck has no catalog_id.
+        let manual = storage.insert_deck("CET-4", None).unwrap();
+        assert_eq!(manual.catalog_id, None);
+        assert!(storage.get_deck_by_catalog_id("cet4").unwrap().is_none());
+
+        // Creating a catalog-tagged deck with a *different* name persists catalog_id
+        // and is then discoverable by it.
+        let (catalog_deck, _) = storage
+            .import_cards_into_new_deck_with_catalog_id(
+                "CET-4 (catalog)",
+                None,
+                &[],
+                DuplicateStrategy::Merge,
+                Some("cet4"),
+            )
+            .unwrap();
+        assert_eq!(catalog_deck.catalog_id.as_deref(), Some("cet4"));
+        let found = storage.get_deck_by_catalog_id("cet4").unwrap().unwrap();
+        assert_eq!(found.id, catalog_deck.id);
+
+        // The manually created deck with the colliding display name is untouched and
+        // still not associated with any catalog id.
+        let manual_again = storage.get_deck_by_id(manual.id).unwrap().unwrap();
+        assert_eq!(manual_again.catalog_id, None);
+
+        // A second catalog deck under a different catalog_id can coexist.
+        let (other, _) = storage
+            .import_cards_into_new_deck_with_catalog_id(
+                "CET-6",
+                None,
+                &[],
+                DuplicateStrategy::Merge,
+                Some("cet6"),
+            )
+            .unwrap();
+        assert_eq!(other.catalog_id.as_deref(), Some("cet6"));
+        assert!(storage.get_deck_by_catalog_id("toefl").unwrap().is_none());
     }
 
     #[test]
@@ -1261,6 +1375,42 @@ mod tests {
         let card = storage.insert_card(deck.id, "hello", &[], &[]).unwrap();
         assert_eq!(card.language, "en");
         assert!(card.tags.is_empty());
+    }
+
+    #[test]
+    fn test_open_adds_catalog_id_column_to_existing_decks_table() {
+        // Simulate an existing user database created before `catalog_id` existed:
+        // a `decks` table with the original (pre-catalog) column set, already
+        // containing a deck row.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("pre-catalog.db");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE decks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO decks (name, description) VALUES ('old-deck', 'created before catalog_id existed');
+            ",
+        )
+        .unwrap();
+        drop(conn);
+
+        // Opening with the current schema must add the column without losing the
+        // existing row, and the pre-existing deck must come back with catalog_id = None
+        // rather than failing to open or erroring on the missing column.
+        let storage = Storage::open(&path).unwrap();
+        let decks = storage.list_decks().unwrap();
+        assert_eq!(decks.len(), 1);
+        assert_eq!(decks[0].name, "old-deck");
+        assert_eq!(decks[0].catalog_id, None);
+
+        // The deck should still be usable for catalog fetches afterwards (no
+        // accidental match against an empty/None catalog_id).
+        assert!(storage.get_deck_by_catalog_id("cet4").unwrap().is_none());
     }
 
     #[test]

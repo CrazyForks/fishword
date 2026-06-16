@@ -49,11 +49,14 @@ fn cmd_deck_list(json: bool) -> Result<()> {
         println!("No decks found.");
         return Ok(());
     }
-    println!("{:<6}  {:<6}  {:<20}  DESCRIPTION", "ACTIVE", "ID", "NAME");
-    println!("{}", "-".repeat(60));
+    println!(
+        "{:<6}  {:<6}  {:<20}  {:<14}  DESCRIPTION",
+        "ACTIVE", "ID", "NAME", "CATALOG"
+    );
+    println!("{}", "-".repeat(72));
     for d in decks {
         println!(
-            "{:<6}  {:<6}  {:<20}  {}",
+            "{:<6}  {:<6}  {:<20}  {:<14}  {}",
             if Some(d.id) == active_deck_id {
                 "*"
             } else {
@@ -61,6 +64,7 @@ fn cmd_deck_list(json: bool) -> Result<()> {
             },
             d.id,
             d.name,
+            d.catalog_id.as_deref().unwrap_or("-"),
             d.description.as_deref().unwrap_or("")
         );
     }
