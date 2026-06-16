@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { OverlayHandle } from "@earendil-works/pi-tui";
+import type { KeyId, OverlayHandle } from "@earendil-works/pi-tui";
 import { seedDefaultDecks } from "./defaultDecks.ts";
 import { getErrorCode, isErrorResponse, parseCardResponse, runFishword } from "./fishword.ts";
 import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
@@ -9,6 +9,28 @@ import { showStatsOverlay } from "./overlays/stats.ts";
 import type { CardResponse, DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
 import { RATINGS } from "./types.ts";
 import { formatStatusLine, formatStatusLineMessage } from "./ui/statusLine.ts";
+
+const HIDE_OR_SUMMON_KEY: KeyId = "ctrl+shift+f";
+const CARD_DETAIL_KEY: KeyId = "ctrl+shift+i";
+
+type FishwordAction = {
+  command: string;
+  description: string;
+  shortcut?: KeyId;
+  shortcutDescription?: string;
+  handler: (ctx: ExtensionContext) => Promise<void> | void;
+};
+
+function formatShortcutLabel(key: string): string {
+  return key
+    .split("+")
+    .map((part) => (part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join("+");
+}
+
+function commandDescription(description: string, shortcut?: string): string {
+  return shortcut ? `${description} (${formatShortcutLabel(shortcut)})` : description;
+}
 
 export default function (pi: ExtensionAPI) {
   let cardOverlayHandle: OverlayHandle | null = null;
@@ -261,57 +283,6 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  pi.on("session_start", async (_event, ctx) => {
-    await seedDefaultDecks(ctx);
-    await refreshDisplay(ctx);
-  });
-
-  pi.registerCommand("fw-deck", {
-    description: "Fishword: switch active deck — shows interactive selector",
-    handler: async (_args, ctx) => {
-      await openDeckSelector(ctx);
-    },
-  });
-
-  pi.registerCommand("fw-stats", {
-    description: "Fishword: show learning stats overlay",
-    handler: async (_args, ctx) => {
-      await openStatsOverlay(ctx);
-    },
-  });
-
-  pi.registerCommand("fw", {
-    description: "Fishword: hide or summon review UI",
-    handler: async (_args, ctx) => {
-      await toggleFishwordVisibility(ctx);
-    },
-  });
-
-  for (const { rating } of RATINGS) {
-    pi.registerCommand(`fw-${rating}`, {
-      description: `Fishword: rate ${rating} → next card`,
-      handler: async (_args, ctx) => {
-        await rateAndAdvance(ctx, rating);
-      },
-    });
-  }
-
-  pi.registerShortcut("ctrl+shift+f", {
-    description: "Fishword: hide or summon review UI",
-    handler: async (ctx) => {
-      await toggleFishwordVisibility(ctx);
-    },
-  });
-
-  for (const { rating, key } of RATINGS) {
-    pi.registerShortcut(key, {
-      description: `Fishword: rate ${rating} → next card`,
-      handler: async (ctx) => {
-        await rateAndAdvance(ctx, rating);
-      },
-    });
-  }
-
   function openCardDetail(ctx: ExtensionContext): void {
     // Hide card / done overlay before showing detail
     cardOverlayHandle?.hide();
@@ -369,17 +340,58 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  pi.registerCommand("fw-detail", {
-    description: "Fishword: show detailed card info (phonetics, meanings, examples)",
-    handler: async (_args, ctx) => {
-      openCardDetail(ctx);
+  const fishwordActions: FishwordAction[] = [
+    {
+      command: "fw-deck",
+      description: "Fishword: switch active deck — shows interactive selector",
+      handler: openDeckSelector,
     },
+    {
+      command: "fw-stats",
+      description: "Fishword: show learning stats overlay",
+      handler: openStatsOverlay,
+    },
+    {
+      command: "fw",
+      description: "Fishword: hide or summon review UI",
+      shortcut: HIDE_OR_SUMMON_KEY,
+      handler: toggleFishwordVisibility,
+    },
+    ...RATINGS.map(({ rating, key }): FishwordAction => ({
+      command: `fw-${rating}`,
+      description: `Fishword: rate ${rating} → next card`,
+      shortcut: key,
+      handler: (ctx) => rateAndAdvance(ctx, rating),
+    })),
+    {
+      command: "fw-detail",
+      description: "Fishword: show detailed card info (phonetics, meanings, examples)",
+      shortcut: CARD_DETAIL_KEY,
+      shortcutDescription: "Fishword: show detailed card info",
+      handler: openCardDetail,
+    },
+  ];
+
+  pi.on("session_start", async (_event, ctx) => {
+    await seedDefaultDecks(ctx);
+    await refreshDisplay(ctx);
   });
 
-  pi.registerShortcut("ctrl+shift+i", {
-    description: "Fishword: show detailed card info",
-    handler: async (ctx) => {
-      openCardDetail(ctx);
-    },
-  });
+  for (const action of fishwordActions) {
+    pi.registerCommand(action.command, {
+      description: commandDescription(action.description, action.shortcut),
+      handler: async (_args, ctx) => {
+        await action.handler(ctx);
+      },
+    });
+
+    if (action.shortcut) {
+      pi.registerShortcut(action.shortcut, {
+        description: action.shortcutDescription ?? action.description,
+        handler: async (ctx) => {
+          await action.handler(ctx);
+        },
+      });
+    }
+  }
 }
