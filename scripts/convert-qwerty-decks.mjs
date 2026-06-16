@@ -21,35 +21,17 @@ const KAJWEB_DIR = path.join(ROOT, "assets/dicts/kajweb");
 const OUT_DIR = path.join(ROOT, "dist/catalog");
 
 // Selected qwerty source files and their catalog metadata.
-// Only the most widely used exam/reference lists are included.
+// Only included when there is no higher-quality kajweb equivalent —
+// kajweb already covers cet4/cet6/toefl with richer data (POS, examples),
+// so the qwerty versions of those are intentionally omitted to avoid
+// publishing duplicate, lower-quality decks. Curate for quality, not breadth.
 const QWERTY_DECKS = [
-  {
-    srcFile: "CET4_T.json",
-    id: "cet4-qwerty",
-    name: "CET-4 (Qwerty Learner)",
-    description: "大学英语四级核心词汇，来自 Qwerty Learner",
-    tags: ["cet4", "exam", "zh"],
-  },
-  {
-    srcFile: "CET6_T.json",
-    id: "cet6-qwerty",
-    name: "CET-6 (Qwerty Learner)",
-    description: "大学英语六级核心词汇，来自 Qwerty Learner",
-    tags: ["cet6", "exam", "zh"],
-  },
   {
     srcFile: "IELTS_3_T.json",
     id: "ielts-qwerty",
     name: "IELTS (Qwerty Learner)",
     description: "雅思核心词汇，来自 Qwerty Learner",
     tags: ["ielts", "exam", "zh"],
-  },
-  {
-    srcFile: "TOEFL_3_T.json",
-    id: "toefl-qwerty",
-    name: "TOEFL (Qwerty Learner)",
-    description: "托福核心词汇，来自 Qwerty Learner",
-    tags: ["toefl", "exam", "zh"],
   },
   {
     srcFile: "GRE_3_T.json",
