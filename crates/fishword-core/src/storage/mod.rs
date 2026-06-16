@@ -84,13 +84,7 @@ impl Storage {
     }
 
     pub fn get_active_deck_id(&self) -> Result<Option<i64>> {
-        self.get_setting("active_deck_id")?
-            .map(|value| {
-                value.parse::<i64>().map_err(|error| {
-                    Error::InvalidInput(format!("invalid active_deck_id '{value}': {error}"))
-                })
-            })
-            .transpose()
+        get_active_deck_id_on(&self.conn)
     }
 
     pub fn get_active_deck(&self) -> Result<Option<Deck>> {
@@ -100,12 +94,12 @@ impl Storage {
             .map(Option::flatten)
     }
 
+    /// Sets (or clears) the active deck and clears the current card atomically.
     pub fn set_active_deck_id(&self, deck_id: Option<i64>) -> Result<()> {
-        match deck_id {
-            Some(deck_id) => self.set_setting("active_deck_id", &deck_id.to_string())?,
-            None => self.delete_setting("active_deck_id")?,
-        }
-        self.set_current_card_id(None)
+        let tx = self.conn.unchecked_transaction()?;
+        set_active_deck_id_on(&tx, deck_id)?;
+        tx.commit()?;
+        Ok(())
     }
 
     pub fn insert_deck(&self, name: &str, description: Option<&str>) -> Result<Deck> {
@@ -204,15 +198,19 @@ impl Storage {
         }
     }
 
+    /// Deletes a deck and all its cards (cascades via the `cards` foreign key).
+    /// Clearing the active-deck pointer (if it pointed at this deck) and the delete
+    /// itself happen in one transaction, so a crash never leaves the active deck
+    /// pointing at an id that no longer exists alongside a half-deleted deck.
     pub fn delete_deck(&self, id: i64) -> Result<Deck> {
-        let deck = self
-            .get_deck_by_id(id)?
-            .ok_or_else(|| Error::NotFound(format!("deck id {id}")))?;
-        if self.get_active_deck_id()? == Some(id) {
-            self.set_active_deck_id(None)?;
+        let tx = self.conn.unchecked_transaction()?;
+        let deck =
+            get_deck_by_id_on(&tx, id)?.ok_or_else(|| Error::NotFound(format!("deck id {id}")))?;
+        if get_active_deck_id_on(&tx)? == Some(id) {
+            set_active_deck_id_on(&tx, None)?;
         }
-        self.conn
-            .execute("DELETE FROM decks WHERE id = ?1", params![id])?;
+        tx.execute("DELETE FROM decks WHERE id = ?1", params![id])?;
+        tx.commit()?;
         Ok(deck)
     }
 
@@ -355,8 +353,12 @@ impl Storage {
         )
     }
 
+    /// Inserts a card and its initial FSRS state atomically.
     pub fn insert_card_with_metadata(&self, deck_id: i64, card: &ImportCard) -> Result<Card> {
-        insert_card_with_metadata_on(&self.conn, deck_id, card)
+        let tx = self.conn.unchecked_transaction()?;
+        let card = insert_card_with_metadata_on(&tx, deck_id, card)?;
+        tx.commit()?;
+        Ok(card)
     }
 
     pub fn import_cards(
@@ -423,10 +425,7 @@ impl Storage {
     }
 
     pub fn set_current_card_id(&self, card_id: Option<i64>) -> Result<()> {
-        match card_id {
-            Some(card_id) => self.set_setting("current_card_id", &card_id.to_string()),
-            None => self.delete_setting("current_card_id"),
-        }
+        set_current_card_id_on(&self.conn, card_id)
     }
 
     pub fn get_current_card(&self) -> Result<Option<Card>> {
@@ -620,67 +619,28 @@ impl Storage {
         Ok(rows)
     }
 
+    /// Persists a review's FSRS state update and review-log entry atomically.
     pub fn record_review(&self, review: &ScheduledReview) -> Result<()> {
-        self.conn.execute(
-            "UPDATE card_state
-             SET stability = ?1,
-                 difficulty = ?2,
-                 due = ?3,
-                 reps = reps + 1,
-                 lapses = lapses + ?4,
-                 state = ?5
-             WHERE card_id = ?6",
-            params![
-                review.stability,
-                review.difficulty,
-                review.due,
-                i64::from(matches!(review.rating, crate::card::Rating::Again)),
-                review.state.to_string(),
-                review.card_id
-            ],
-        )?;
-        self.conn.execute(
-            "INSERT INTO review_log
-             (card_id, rating, reviewed_at, elapsed_days, scheduled_days)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                review.card_id,
-                review.rating.as_i64(),
-                review.reviewed_at,
-                review.elapsed_days,
-                review.scheduled_days
-            ],
-        )?;
+        let tx = self.conn.unchecked_transaction()?;
+        record_review_on(&tx, review)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Records a review and advances the current card pointer in one transaction.
+    /// This is the atomic counterpart to calling [`Storage::record_review`] followed
+    /// by [`Storage::set_current_card_id`] — used by the scheduler so a crash between
+    /// the two never leaves an inconsistent "reviewed but current card unset" state.
+    pub fn record_review_and_set_current(&self, review: &ScheduledReview) -> Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        record_review_on(&tx, review)?;
+        set_current_card_id_on(&tx, Some(review.card_id))?;
+        tx.commit()?;
         Ok(())
     }
 
     fn get_setting(&self, key: &str) -> Result<Option<String>> {
-        let result = self.conn.query_row(
-            "SELECT value FROM settings WHERE key = ?1",
-            params![key],
-            |row| row.get(0),
-        );
-        match result {
-            Ok(value) => Ok(Some(value)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(Error::Db(e)),
-        }
-    }
-
-    fn set_setting(&self, key: &str, value: &str) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO settings (key, value)
-             VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![key, value],
-        )?;
-        Ok(())
-    }
-
-    fn delete_setting(&self, key: &str) -> Result<()> {
-        self.conn
-            .execute("DELETE FROM settings WHERE key = ?1", params![key])?;
-        Ok(())
+        get_setting_on(&self.conn, key)
     }
 
     /// Fetch the FSRS state for a card (returns `None` if card has no state row).
@@ -762,6 +722,98 @@ fn get_deck_by_id_on(conn: &Connection, id: i64) -> Result<Option<Deck>> {
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(Error::Db(e)),
     }
+}
+
+fn get_setting_on(conn: &Connection, key: &str) -> Result<Option<String>> {
+    let result = conn.query_row(
+        "SELECT value FROM settings WHERE key = ?1",
+        params![key],
+        |row| row.get(0),
+    );
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(Error::Db(e)),
+    }
+}
+
+fn set_setting_on(conn: &Connection, key: &str, value: &str) -> Result<()> {
+    conn.execute(
+        "INSERT INTO settings (key, value)
+         VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    )?;
+    Ok(())
+}
+
+fn delete_setting_on(conn: &Connection, key: &str) -> Result<()> {
+    conn.execute("DELETE FROM settings WHERE key = ?1", params![key])?;
+    Ok(())
+}
+
+fn get_active_deck_id_on(conn: &Connection) -> Result<Option<i64>> {
+    get_setting_on(conn, "active_deck_id")?
+        .map(|value| {
+            value.parse::<i64>().map_err(|error| {
+                Error::InvalidInput(format!("invalid active_deck_id '{value}': {error}"))
+            })
+        })
+        .transpose()
+}
+
+fn set_current_card_id_on(conn: &Connection, card_id: Option<i64>) -> Result<()> {
+    match card_id {
+        Some(card_id) => set_setting_on(conn, "current_card_id", &card_id.to_string()),
+        None => delete_setting_on(conn, "current_card_id"),
+    }
+}
+
+/// Sets (or clears) the active deck and always clears the current card in the same
+/// transaction, so a crash never leaves "current card from the old deck" paired with
+/// "new active deck" — see [`Storage::set_active_deck_id`].
+fn set_active_deck_id_on(conn: &Connection, deck_id: Option<i64>) -> Result<()> {
+    match deck_id {
+        Some(deck_id) => set_setting_on(conn, "active_deck_id", &deck_id.to_string())?,
+        None => delete_setting_on(conn, "active_deck_id")?,
+    }
+    set_current_card_id_on(conn, None)
+}
+
+/// Persists a review's FSRS state update and its review-log entry atomically: either
+/// both writes land or neither does. See [`Storage::record_review`].
+fn record_review_on(conn: &Connection, review: &ScheduledReview) -> Result<()> {
+    conn.execute(
+        "UPDATE card_state
+         SET stability = ?1,
+             difficulty = ?2,
+             due = ?3,
+             reps = reps + 1,
+             lapses = lapses + ?4,
+             state = ?5
+         WHERE card_id = ?6",
+        params![
+            review.stability,
+            review.difficulty,
+            review.due,
+            i64::from(matches!(review.rating, crate::card::Rating::Again)),
+            review.state.to_string(),
+            review.card_id
+        ],
+    )?;
+    conn.execute(
+        "INSERT INTO review_log
+         (card_id, rating, reviewed_at, elapsed_days, scheduled_days)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            review.card_id,
+            review.rating.as_i64(),
+            review.reviewed_at,
+            review.elapsed_days,
+            review.scheduled_days
+        ],
+    )?;
+    Ok(())
 }
 
 fn import_cards_on(
@@ -1248,6 +1300,80 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM cards", [], |row| row.get(0))
             .unwrap();
         assert_eq!(card_count, 0);
+    }
+
+    #[test]
+    fn test_record_review_and_set_current_rolls_back_on_write_error() {
+        use crate::card::Rating;
+        use crate::scheduler::ScheduledReview;
+
+        let storage = open_temp();
+        let deck = storage.insert_deck("test", None).unwrap();
+        let card = storage.insert_card(deck.id, "hello", &[], &[]).unwrap();
+
+        // Force the review_log insert (the second write in record_review_on) to fail,
+        // so we can verify the preceding card_state update is rolled back too, and
+        // that set_current_card_id never runs.
+        storage
+            .conn
+            .execute_batch(
+                "
+                CREATE TRIGGER reject_review_log_insert
+                BEFORE INSERT ON review_log
+                BEGIN
+                    SELECT RAISE(ABORT, 'review_log insert rejected');
+                END;
+                ",
+            )
+            .unwrap();
+
+        let before = storage.get_card_state(card.id).unwrap().unwrap();
+
+        let review = ScheduledReview {
+            card_id: card.id,
+            rating: Rating::Good,
+            reviewed_at: "2026-01-01 00:00:00".to_string(),
+            due: "2026-01-05 00:00:00".to_string(),
+            elapsed_days: 0,
+            scheduled_days: 4,
+            stability: 9.9,
+            difficulty: 5.5,
+            state: crate::card::ReviewState::Review,
+        };
+
+        let result = storage.record_review_and_set_current(&review);
+        assert!(result.is_err());
+
+        // card_state must be unchanged — the UPDATE was rolled back along with the
+        // failed INSERT, not partially applied.
+        let after = storage.get_card_state(card.id).unwrap().unwrap();
+        assert_eq!(after.stability, before.stability);
+        assert_eq!(after.due, before.due);
+        assert_eq!(after.reps, before.reps);
+
+        // current_card_id must not have been set either.
+        assert_eq!(storage.get_current_card_id().unwrap(), None);
+
+        let log_count: i64 = storage
+            .conn
+            .query_row("SELECT COUNT(*) FROM review_log", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(log_count, 0);
+    }
+
+    #[test]
+    fn test_delete_deck_and_active_pointer_update_are_atomic() {
+        let storage = open_temp();
+        let deck = storage.insert_deck("active-one", None).unwrap();
+        storage.set_active_deck_id(Some(deck.id)).unwrap();
+        assert_eq!(storage.get_active_deck_id().unwrap(), Some(deck.id));
+
+        storage.delete_deck(deck.id).unwrap();
+
+        // Deleting the active deck must clear the active pointer in the same
+        // transaction as the delete — never leaving it pointing at a deleted id.
+        assert_eq!(storage.get_active_deck_id().unwrap(), None);
+        assert!(storage.get_deck_by_id(deck.id).unwrap().is_none());
     }
 
     #[test]
