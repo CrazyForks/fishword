@@ -121,11 +121,8 @@ pnpm check
 # 1. 编译最新 CLI
 pnpm dev:rust
 
-# 2. 编译 pi-extension（esbuild 打包）
+# 2. 编译 pi-extension 并用 --extension 临时加载（不需要安装到 Pi）
 pnpm dev:pi
-
-# 3. 用 --extension 临时加载（不需要安装到 Pi）
-pi --extension ./packages/pi-extension/dist/index.js
 ```
 
 extension 通过 `@fishword/cli` 找到 CLI 二进制，开发时会优先使用 `target/debug/fishword`，无需配置路径。
@@ -145,7 +142,7 @@ git push origin v0.1.0
 
 ```bash
 pnpm dev:rust       # 编译 debug Rust CLI
-pnpm dev:pi         # 编译 Pi extension
+pnpm dev:pi         # 编译 Pi extension 并启动 Pi
 pnpm build          # 编译 Rust workspace 和 Pi extension
 pnpm build:rust     # 编译 Rust workspace
 pnpm build:pi       # 编译 Pi extension

@@ -18,7 +18,7 @@
     "smoke:rust": "node scripts/smoke-cli.mjs",
     "format:rust": "cargo fmt --all",
     "format:check:rust": "cargo fmt --all -- --check",
-    "dev:pi": "pnpm run build:pi",
+    "dev:pi": "pnpm run build:pi && pi --extension ./packages/pi-extension/dist/index.js",
     "build:pi": "pnpm --filter @fishword/pi-extension run build",
     "check:pi": "pnpm --filter @fishword/pi-extension run check"
   },
