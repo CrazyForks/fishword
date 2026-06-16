@@ -15,6 +15,7 @@ The project currently supports:
 - Card selection through `current`; `rate` records a review and returns the next card in JSON output
 - Stable JSON protocol output for frontend integrations
 - npm-distributed CLI wrapper and Pi extension packages
+- Online catalog of pre-built decks hosted on GitHub Pages, downloadable via `fishword catalog`
 
 ## CLI Role
 
@@ -31,10 +32,20 @@ fishword current --json
 fishword rate good --json
 ```
 
+Or use the catalog to download a pre-built deck in one step:
+
+```bash
+fishword catalog list
+fishword catalog fetch cet4
+fishword catalog fetch toefl --duplicates merge --json
+```
+
 Important CLI details:
 
 - `import` currently takes a numeric deck id via `--deck`; create or list decks first.
+- `catalog fetch` creates a new deck automatically (or merges into an existing one with the same name).
 - There is no standalone `next` command in the current CLI. Use `current` to select/show the current card, and `rate again|hard|good|easy --json` to record a review and receive the next card.
+- Set `FISHWORD_CATALOG_URL` to override the catalog endpoint (useful for offline testing or self-hosted mirrors).
 - Human-readable output remains available for manual testing, for example:
 
 ```bash
@@ -75,6 +86,7 @@ fishword status --format statusline
 │   └── pi-extension/
 ├── schemas/
 ├── scripts/
+│   ├── convert-qwerty-decks.mjs
 │   ├── kajweb_to_jsonl.py
 │   ├── prepare-pi-extension-assets.mjs
 │   └── smoke-cli.mjs
@@ -172,6 +184,31 @@ Keep the source notice and upstream license files under:
 ```text
 assets/dicts/qwerty-learner/SOURCE.md
 assets/dicts/qwerty-learner/upstream/LICENSE
+```
+
+### Online Catalog
+
+Selected dictionaries are published as fishword.deck.v1 JSONL files to GitHub
+Pages and indexed by a `catalog.json` manifest. The build is driven by:
+
+```text
+scripts/convert-qwerty-decks.mjs
+```
+
+Output goes to `dist/catalog/` (git-ignored). The workflow
+`.github/workflows/publish-catalog.yml` deploys this directory to the `gh-pages`
+branch under `catalog/` whenever dictionary sources or the script change on main.
+
+The catalog endpoint used by the CLI is:
+
+```
+https://chenggou1.github.io/fishword/catalog/catalog.json
+```
+
+To regenerate the catalog locally:
+
+```bash
+node scripts/convert-qwerty-decks.mjs
 ```
 
 ### Git LFS
