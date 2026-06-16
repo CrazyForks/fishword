@@ -17,10 +17,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const QWERTY_DIR = path.join(ROOT, "assets/dicts/qwerty-learner/dicts");
-const KAJWEB_DIR = path.join(
-  ROOT,
-  "packages/pi-extension/assets/dicts/kajweb"
-);
+const KAJWEB_DIR = path.join(ROOT, "assets/dicts/kajweb");
 const OUT_DIR = path.join(ROOT, "dist/catalog");
 
 // Selected qwerty source files and their catalog metadata.
