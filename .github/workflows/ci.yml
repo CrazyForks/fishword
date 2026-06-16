@@ -82,3 +82,27 @@ jobs:
 
       - name: Build
         run: pnpm --filter @fishword/pi-extension run build
+
+  validate-catalog:
+    name: Validate catalog script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run conversion script
+        run: node scripts/convert-qwerty-decks.mjs
+
+      - name: Validate catalog.json
+        run: |
+          node -e "
+            const c = JSON.parse(require('fs').readFileSync('dist/catalog/catalog.json', 'utf8'));
+            if (!Array.isArray(c.decks) || c.decks.length === 0) throw new Error('catalog is empty');
+            console.log('catalog ok:', c.decks.length, 'decks');
+            c.decks.forEach(d => {
+              if (!d.id || !d.url || !d.word_count) throw new Error('invalid deck entry: ' + JSON.stringify(d));
+            });
+          "

@@ -36,6 +36,11 @@ pub enum Cmd {
     Stats(StatsArgs),
     /// Rate the current card: again, hard, good, easy.
     Rate(RateArgs),
+    /// Browse and download decks from the online catalog.
+    Catalog {
+        #[command(subcommand)]
+        sub: CatalogCmd,
+    },
 }
 
 #[derive(Subcommand)]
@@ -124,6 +129,9 @@ pub struct ImportArgs {
     /// Duplicate strategy: merge, skip, overwrite, keep.
     #[arg(long, default_value = "merge")]
     pub duplicates: String,
+    /// Emit stable JSON protocol output.
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Parser)]
@@ -191,4 +199,25 @@ pub struct RateArgs {
     /// Emit stable JSON protocol output.
     #[arg(long)]
     pub json: bool,
+}
+
+#[derive(Subcommand)]
+pub enum CatalogCmd {
+    /// List available decks in the online catalog.
+    List {
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Download and import a deck from the catalog by id.
+    Fetch {
+        /// Deck id from `catalog list`.
+        deck_id: String,
+        /// Duplicate strategy: merge, skip, overwrite, keep.
+        #[arg(long, default_value = "merge")]
+        duplicates: String,
+        /// Emit stable JSON protocol output.
+        #[arg(long)]
+        json: bool,
+    },
 }

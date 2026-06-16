@@ -1,0 +1,216 @@
+use std::str::FromStr;
+
+use anyhow::{Context, Result};
+use fishword_core::{
+    error::Error as CoreError,
+    importer::{import_jsonl_str, DuplicateStrategy},
+    protocol::{
+        CatalogDeckEntry, CatalogFetchResponse, CatalogListResponse, ImportResponse,
+        CATALOG_FETCH_SCHEMA, CATALOG_LIST_SCHEMA, IMPORT_SCHEMA,
+    },
+};
+use serde::Deserialize;
+
+use crate::{
+    args::CatalogCmd,
+    util::{exit_json_error, open_storage, print_json},
+};
+
+const DEFAULT_CATALOG_URL: &str =
+    "https://chenggou1.github.io/fishword/catalog/catalog.json";
+
+fn catalog_url() -> String {
+    std::env::var("FISHWORD_CATALOG_URL").unwrap_or_else(|_| DEFAULT_CATALOG_URL.to_string())
+}
+
+// ── Internal deserialization types ──────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct CatalogJson {
+    decks: Vec<CatalogEntryJson>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CatalogEntryJson {
+    id: String,
+    name: String,
+    description: Option<String>,
+    #[serde(default = "default_language")]
+    language: String,
+    #[serde(default)]
+    word_count: u64,
+    #[serde(default)]
+    tags: Vec<String>,
+    url: String,
+    #[serde(default)]
+    size_bytes: u64,
+}
+
+fn default_language() -> String {
+    "en".to_string()
+}
+
+// ── Command entry point ──────────────────────────────────────────────────────
+
+pub fn cmd_catalog(sub: CatalogCmd) -> Result<()> {
+    match sub {
+        CatalogCmd::List { json } => catalog_list(json),
+        CatalogCmd::Fetch {
+            deck_id,
+            duplicates,
+            json,
+        } => catalog_fetch(&deck_id, &duplicates, json),
+    }
+}
+
+// ── List ─────────────────────────────────────────────────────────────────────
+
+fn catalog_list(json: bool) -> Result<()> {
+    let catalog = fetch_catalog(json)?;
+    if json {
+        let decks = catalog
+            .decks
+            .into_iter()
+            .map(|e| CatalogDeckEntry {
+                id: e.id,
+                name: e.name,
+                description: e.description,
+                language: e.language,
+                word_count: e.word_count,
+                tags: e.tags,
+                url: e.url,
+                size_bytes: e.size_bytes,
+            })
+            .collect();
+        return print_json(&CatalogListResponse {
+            schema: CATALOG_LIST_SCHEMA,
+            decks,
+        });
+    }
+    println!("{:<24} {:<32} {:>6}  {}", "ID", "Name", "Words", "Tags");
+    println!("{}", "-".repeat(72));
+    for e in &catalog.decks {
+        println!(
+            "{:<24} {:<32} {:>6}  {}",
+            e.id,
+            e.name,
+            e.word_count,
+            e.tags.join(" ")
+        );
+    }
+    Ok(())
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+
+fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
+    let duplicate_strategy = DuplicateStrategy::from_str(duplicates)
+        .with_context(|| format!("invalid --duplicates value '{duplicates}'"))?;
+
+    let catalog = fetch_catalog(json)?;
+    let entry = match catalog.decks.into_iter().find(|e| e.id == deck_id) {
+        Some(e) => e,
+        None if json => {
+            exit_json_error(
+                "deck_not_found",
+                &format!(
+                    "Deck '{deck_id}' not found in catalog. Run `fishword catalog list` to see available decks."
+                ),
+            );
+        }
+        None => anyhow::bail!(
+            "Deck '{deck_id}' not found in catalog. Run `fishword catalog list` to see available decks."
+        ),
+    };
+
+    let jsonl_body = fetch_url(&entry.url, json)
+        .with_context(|| format!("failed to download deck '{deck_id}' from {}", entry.url))?;
+
+    let import_deck = import_jsonl_str(&jsonl_body, deck_id, Some(&entry.name))
+        .with_context(|| format!("failed to parse JSONL for deck '{deck_id}'"))?;
+
+    let storage = open_storage()?;
+    let (db_deck, summary) =
+        match storage.import_cards_into_new_deck(&entry.name, None, &import_deck.cards, duplicate_strategy) {
+            Ok(result) => result,
+            Err(CoreError::AlreadyExists(_)) => {
+                // Deck already exists — find it by name and merge into it.
+                let existing = storage
+                    .list_decks()
+                    .context("failed to list decks")?
+                    .into_iter()
+                    .find(|d| d.name == entry.name)
+                    .ok_or_else(|| anyhow::anyhow!("deck '{}' already exists but could not be found", entry.name))?;
+                let s = storage
+                    .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
+                    .context("failed to import cards")?;
+                (existing, s)
+            }
+            Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
+        };
+
+    // Auto-activate if no active deck is set.
+    if storage
+        .get_active_deck_id()
+        .context("failed to read active deck")?
+        .is_none()
+    {
+        storage
+            .set_active_deck_id(Some(db_deck.id))
+            .context("failed to set active deck")?;
+    }
+
+    let import_response = ImportResponse {
+        schema: IMPORT_SCHEMA,
+        deck_id: db_deck.id,
+        deck: db_deck.name.clone(),
+        input: summary.input_count,
+        inserted: summary.inserted,
+        updated: summary.updated,
+        merged: summary.merged,
+        skipped: summary.skipped,
+    };
+
+    if json {
+        return print_json(&CatalogFetchResponse {
+            schema: CATALOG_FETCH_SCHEMA,
+            deck_id: deck_id.to_string(),
+            name: db_deck.name,
+            import: import_response,
+        });
+    }
+
+    println!(
+        "Fetched deck={} input={} inserted={} updated={} merged={} skipped={}",
+        import_response.deck,
+        import_response.input,
+        import_response.inserted,
+        import_response.updated,
+        import_response.merged,
+        import_response.skipped,
+    );
+    Ok(())
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+fn fetch_catalog(json_errors: bool) -> Result<CatalogJson> {
+    let url = catalog_url();
+    let body = fetch_url(&url, json_errors)
+        .with_context(|| format!("failed to fetch catalog from {url}"))?;
+    serde_json::from_str::<CatalogJson>(&body)
+        .with_context(|| "failed to parse catalog JSON")
+}
+
+fn fetch_url(url: &str, json_errors: bool) -> Result<String> {
+    match ureq::get(url).call() {
+        Ok(resp) => resp
+            .into_body()
+            .read_to_string()
+            .context("failed to read response body"),
+        Err(e) if json_errors => {
+            exit_json_error("network_error", &format!("Network request failed: {e}"));
+        }
+        Err(e) => anyhow::bail!("network request failed: {e}"),
+    }
+}

@@ -8,11 +8,12 @@ use fishword_core::{
         import_anki_tsv_file, import_csv_file, import_jsonl_file, import_qwerty_file,
         DuplicateStrategy,
     },
+    protocol::{ImportResponse, IMPORT_SCHEMA},
 };
 
 use crate::{
     args::{ImportArgs, ImportCmd},
-    util::open_storage,
+    util::{open_storage, print_json},
 };
 
 pub fn cmd_import(command: ImportCmd) -> Result<()> {
@@ -72,6 +73,18 @@ fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCa
         storage
             .set_active_deck_id(Some(db_deck.id))
             .context("failed to set active deck")?;
+    }
+    if args.json {
+        return print_json(&ImportResponse {
+            schema: IMPORT_SCHEMA,
+            deck_id: db_deck.id,
+            deck: db_deck.name,
+            input: summary.input_count,
+            inserted: summary.inserted,
+            updated: summary.updated,
+            merged: summary.merged,
+            skipped: summary.skipped,
+        });
     }
     println!(
         "Imported deck={} input={} inserted={} updated={} merged={} skipped={}",

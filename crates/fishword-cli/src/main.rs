@@ -6,7 +6,8 @@ use anyhow::Result;
 use args::{CardCmd, Cli, Cmd};
 use clap::Parser;
 use cmd::{
-    cmd_card_list, cmd_current, cmd_deck, cmd_import, cmd_init, cmd_rate, cmd_stats, cmd_status,
+    cmd_card_list, cmd_catalog, cmd_current, cmd_deck, cmd_import, cmd_init, cmd_rate, cmd_stats,
+    cmd_status,
 };
 
 fn main() -> Result<()> {
@@ -22,5 +23,6 @@ fn main() -> Result<()> {
         Cmd::Status(args) => cmd_status(&args),
         Cmd::Stats(args) => cmd_stats(&args),
         Cmd::Rate(args) => cmd_rate(&args),
+        Cmd::Catalog { sub } => cmd_catalog(sub),
     }
 }

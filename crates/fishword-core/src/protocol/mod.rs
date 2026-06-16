@@ -21,6 +21,9 @@ pub const DECK_RENAME_SCHEMA: &str = "fishword.protocol.deck_rename.v1";
 pub const STATUS_SCHEMA: &str = "fishword.protocol.status.v1";
 pub const STATS_SCHEMA: &str = "fishword.protocol.stats.v1";
 pub const CARD_LIST_SCHEMA: &str = "fishword.protocol.card_list.v1";
+pub const IMPORT_SCHEMA: &str = "fishword.protocol.import.v1";
+pub const CATALOG_LIST_SCHEMA: &str = "fishword.protocol.catalog_list.v1";
+pub const CATALOG_FETCH_SCHEMA: &str = "fishword.protocol.catalog_fetch.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFormat {
@@ -114,6 +117,44 @@ pub struct DeckDeletedFields {
 pub struct DeckRenameResponse {
     pub schema: &'static str,
     pub deck: DeckMutationFields,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CatalogDeckEntry {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub language: String,
+    pub word_count: u64,
+    pub tags: Vec<String>,
+    pub url: String,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CatalogListResponse {
+    pub schema: &'static str,
+    pub decks: Vec<CatalogDeckEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CatalogFetchResponse {
+    pub schema: &'static str,
+    pub deck_id: String,
+    pub name: String,
+    pub import: ImportResponse,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportResponse {
+    pub schema: &'static str,
+    pub deck_id: i64,
+    pub deck: String,
+    pub input: usize,
+    pub inserted: usize,
+    pub updated: usize,
+    pub merged: usize,
+    pub skipped: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
