@@ -39,7 +39,9 @@ pi install npm:@fishword/pi-extension
 
 ![词卡界面](docs/images/screenshot-card.png)
 
-按 **`Ctrl+Shift+V`** 显示当前词卡，然后用快捷键评分：
+按 **`Ctrl+Shift+F`** 隐藏或唤起 Fishword：词卡可见时一键隐藏，隐藏后再按一次恢复到原本的复习视图。也可以输入 `/fw` 执行同样的隐藏/唤起操作。
+
+词卡显示后，用快捷键评分：
 
 | 快捷键 | 评分 | 含义 |
 |--------|------|------|

@@ -65,7 +65,7 @@ export function showDoneOverlay(
     },
     {
       overlay: true,
-      overlayOptions: { anchor: "right-center", width: overlayWidth, margin: 1, offsetY: 5 },
+      overlayOptions: { anchor: "right-center", width: overlayWidth, margin: 1, offsetY: 5, nonCapturing: true },
       onHandle: (handle) => {
         handle.unfocus();
         onHandle(handle);
@@ -126,7 +126,7 @@ export function showCardOverlay(
     }),
     {
       overlay: true,
-      overlayOptions: { anchor: "right-center", width: overlayWidth, margin: 1, offsetY: 5 },
+      overlayOptions: { anchor: "right-center", width: overlayWidth, margin: 1, offsetY: 5, nonCapturing: true },
       onHandle: (handle) => {
         handle.unfocus();
         onHandle(handle);

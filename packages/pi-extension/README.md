@@ -18,7 +18,7 @@ pi install npm:@fishword/pi-extension
 
 | 快捷键 | 功能 |
 |--------|------|
-| `Ctrl+Shift+V` | 显示/刷新当前词卡 |
+| `Ctrl+Shift+F` | 隐藏或唤起 Fishword UI |
 | `Ctrl+Shift+I` | 打开详情面板（音标、词性、释义、例句） |
 | `Ctrl+Shift+G` | 评分：good（记住了） |
 | `Ctrl+Shift+H` | 评分：hard（有点难） |
@@ -31,6 +31,7 @@ pi install npm:@fishword/pi-extension
 
 | 命令 | 功能 |
 |------|------|
+| `/fw` | 隐藏或唤起 Fishword UI |
 | `/fw-detail` | 打开当前单词的详情面板 |
 | `/fw-stats` | 查看今日进度和 7 日学习趋势 |
 | `/fw-deck` | 切换激活词库 |

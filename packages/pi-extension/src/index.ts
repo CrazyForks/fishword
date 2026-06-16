@@ -17,7 +17,37 @@ export default function (pi: ExtensionAPI) {
   let statsOverlayHandle: OverlayHandle | null = null;
   let doneCheckTimer: ReturnType<typeof setInterval> | null = null;
   let isDone = false;
+  let isFishwordHidden = false;
+  let lastStatusLine: string | undefined;
   let currentCardResponse: CardResponse | null = null;
+
+  function setFishwordStatus(ctx: ExtensionContext, text: string | undefined): void {
+    lastStatusLine = text;
+    ctx.ui.setStatus("fishword", isFishwordHidden ? undefined : text);
+  }
+
+  function applyFishwordHidden(ctx: ExtensionContext): void {
+    cardOverlayHandle?.setHidden(isFishwordHidden);
+    cardDetailHandle?.setHidden(isFishwordHidden);
+    deckSelectorHandle?.setHidden(isFishwordHidden);
+    statsOverlayHandle?.setHidden(isFishwordHidden);
+    ctx.ui.setStatus("fishword", isFishwordHidden ? undefined : lastStatusLine);
+  }
+
+  async function toggleFishwordVisibility(ctx: ExtensionContext): Promise<void> {
+    isFishwordHidden = !isFishwordHidden;
+    applyFishwordHidden(ctx);
+
+    if (
+      !isFishwordHidden &&
+      !cardOverlayHandle &&
+      !cardDetailHandle &&
+      !deckSelectorHandle &&
+      !statsOverlayHandle
+    ) {
+      await refreshDisplay(ctx);
+    }
+  }
 
   function hideCardOverlay(): void {
     cardOverlayHandle?.hide();
@@ -51,6 +81,7 @@ export default function (pi: ExtensionAPI) {
     currentCardResponse = parsed;
     showCardOverlay(ctx, parsed, (handle) => {
       cardOverlayHandle = handle;
+      handle.setHidden(isFishwordHidden);
     });
   }
 
@@ -59,6 +90,7 @@ export default function (pi: ExtensionAPI) {
     isDone = true;
     showDoneOverlay(ctx, (handle) => {
       cardOverlayHandle = handle;
+      handle.setHidden(isFishwordHidden);
     });
     doneCheckTimer = setInterval(() => {
       void (async () => {
@@ -75,8 +107,8 @@ export default function (pi: ExtensionAPI) {
       const res = await runFishword(["status", "--json"]);
       if (isErrorResponse(res)) {
         const code = getErrorCode(res);
-        ctx.ui.setStatus(
-          "fishword",
+        setFishwordStatus(
+          ctx,
           code === "no_active_deck" || code === "no_cards"
             ? formatStatusLineMessage("no-deck")
             : formatStatusLineMessage("unavailable"),
@@ -84,14 +116,14 @@ export default function (pi: ExtensionAPI) {
         return null;
       }
       if (res["schema"] !== "fishword.protocol.status.v1") {
-        ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+        setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
         return null;
       }
       const status = res as StatusResponse;
-      ctx.ui.setStatus("fishword", formatStatusLine(status));
+      setFishwordStatus(ctx, formatStatusLine(status));
       return status;
     } catch {
-      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+      setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
       return null;
     }
   }
@@ -115,6 +147,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
+    if (isFishwordHidden) return;
     if (isDone) return;
     try {
       const res = await runFishword(["rate", rating, "--json"]);
@@ -134,7 +167,7 @@ export default function (pi: ExtensionAPI) {
       }
     } catch {
       hideCardOverlay();
-      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+      setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
     }
   }
 
@@ -169,6 +202,7 @@ export default function (pi: ExtensionAPI) {
       stats: statsRes as StatsResponse,
       onHandle: (handle) => {
         statsOverlayHandle = handle;
+        handle.setHidden(isFishwordHidden);
       },
       onDone: () => {
         statsOverlayHandle = null;
@@ -208,6 +242,7 @@ export default function (pi: ExtensionAPI) {
       activeIndex: decks.findIndex((d) => d.active),
       onHandle: (handle) => {
         deckSelectorHandle = handle;
+        handle.setHidden(isFishwordHidden);
       },
       onCancel: () => {
         hideDeckSelector();
@@ -245,6 +280,13 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand("fw", {
+    description: "Fishword: hide or summon review UI",
+    handler: async (_args, ctx) => {
+      await toggleFishwordVisibility(ctx);
+    },
+  });
+
   for (const { rating } of RATINGS) {
     pi.registerCommand(`fw-${rating}`, {
       description: `Fishword: rate ${rating} → next card`,
@@ -254,10 +296,10 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  pi.registerShortcut("ctrl+shift+v", {
-    description: "Fishword: refresh vocab card",
+  pi.registerShortcut("ctrl+shift+f", {
+    description: "Fishword: hide or summon review UI",
     handler: async (ctx) => {
-      await refreshDisplay(ctx);
+      await toggleFishwordVisibility(ctx);
     },
   });
 
@@ -284,6 +326,7 @@ export default function (pi: ExtensionAPI) {
       response: currentCardResponse,
       onHandle: (handle) => {
         cardDetailHandle = handle;
+        handle.setHidden(isFishwordHidden);
       },
       onClose: () => {
         cardDetailHandle = null;
@@ -291,6 +334,7 @@ export default function (pi: ExtensionAPI) {
         if (currentCardResponse) {
           showCardOverlay(ctx, currentCardResponse, (handle) => {
             cardOverlayHandle = handle;
+            handle.setHidden(isFishwordHidden);
           });
         }
       },
@@ -301,6 +345,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function rateInDetail(ctx: ExtensionContext, rating: Rating): Promise<void> {
+    if (isFishwordHidden) return;
     if (!currentCardResponse) return;
     cardDetailHandle = null;
     try {
@@ -320,7 +365,7 @@ export default function (pi: ExtensionAPI) {
       }
       openCardDetail(ctx);
     } catch {
-      ctx.ui.setStatus("fishword", formatStatusLineMessage("unavailable"));
+      setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
     }
   }
 
