@@ -162,7 +162,7 @@ fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
     } else {
         match storage.import_cards_into_new_deck_with_catalog_id(
             &entry.name,
-            None,
+            entry.description.as_deref(),
             &cards,
             duplicate_strategy,
             Some(catalog_id),

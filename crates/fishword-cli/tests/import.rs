@@ -1,7 +1,10 @@
 use std::{
     fs,
+    io::{Read, Write},
+    net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::Command,
+    thread,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -34,6 +37,73 @@ fn fishword(home: &Path, args: &[&str]) -> std::process::Output {
         .args(args)
         .output()
         .unwrap()
+}
+
+fn fishword_with_env(home: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::process::Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_fishword"));
+    command.env("HOME", home).args(args);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command.output().unwrap()
+}
+
+fn start_catalog_server() -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let catalog_url = format!("http://{addr}/catalog.json");
+    let deck_url = format!("http://{addr}/deck.jsonl");
+    let handle = thread::spawn(move || {
+        for stream in listener.incoming().take(2) {
+            let mut stream = stream.unwrap();
+            handle_catalog_request(&mut stream, &deck_url);
+        }
+    });
+    (catalog_url, handle)
+}
+
+fn handle_catalog_request(stream: &mut TcpStream, deck_url: &str) {
+    let mut request = [0_u8; 1024];
+    let n = stream.read(&mut request).unwrap();
+    let request = String::from_utf8_lossy(&request[..n]);
+    let path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
+    let body = match path {
+        "/catalog.json" => format!(
+            r#"{{
+                "decks": [{{
+                    "id": "test:sample",
+                    "slug": "sample",
+                    "source_id": "test",
+                    "name": "Sample",
+                    "description": "Demo catalog description",
+                    "word_count": 1,
+                    "tags": ["test"],
+                    "url": "{deck_url}",
+                    "size_bytes": 64
+                }}]
+            }}"#
+        ),
+        "/deck.jsonl" => {
+            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#.to_string()
+        }
+        _ => String::new(),
+    };
+    let status = if body.is_empty() {
+        "HTTP/1.1 404 Not Found"
+    } else {
+        "HTTP/1.1 200 OK"
+    };
+    write!(
+        stream,
+        "{status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    )
+    .unwrap();
 }
 
 fn assert_success(output: std::process::Output) -> String {
@@ -139,4 +209,26 @@ fn import_with_create_deck_rejects_existing_deck() {
             "Existing",
         ],
     ));
+}
+
+#[test]
+fn import_catalog_fetch_preserves_manifest_description() {
+    let home = temp_home("import-catalog-description");
+    let (catalog_url, server) = start_catalog_server();
+
+    assert_success(fishword(&home, &["init"]));
+    assert_success(fishword_with_env(
+        &home,
+        &["catalog", "fetch", "test:sample", "--json"],
+        &[("FISHWORD_CATALOG_URL", &catalog_url)],
+    ));
+    server.join().unwrap();
+
+    let decks = assert_success(fishword(&home, &["deck", "list", "--json"]));
+    let decks: serde_json::Value = serde_json::from_str(&decks).unwrap();
+
+    assert_eq!(
+        decks["decks"][0]["description"].as_str(),
+        Some("Demo catalog description")
+    );
 }
