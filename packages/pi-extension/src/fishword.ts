@@ -35,6 +35,18 @@ export function getErrorCode(res: Record<string, unknown>): string | undefined {
   return (res["error"] as { code?: string })?.code;
 }
 
+export function getErrorMessage(res: Record<string, unknown>): string | undefined {
+  return (res["error"] as { message?: string })?.message;
+}
+
+export function describeFishwordError(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) {
+    const execErr = err as Error & { stderr?: string };
+    return execErr.stderr?.trim() || err.message;
+  }
+  return "unknown error";
+}
+
 export function parseCardResponse(res: Record<string, unknown>): CardResponse {
   return res as CardResponse;
 }

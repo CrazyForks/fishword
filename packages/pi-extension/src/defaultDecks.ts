@@ -1,5 +1,12 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getErrorCode, isErrorResponse, runFishword, runFishwordText } from "./fishword.ts";
+import {
+  describeFishwordError,
+  getErrorCode,
+  getErrorMessage,
+  isErrorResponse,
+  runFishword,
+  runFishwordText,
+} from "./fishword.ts";
 import type { DeckItem } from "./types.ts";
 
 type DefaultDeck = {
@@ -54,7 +61,9 @@ async function fetchCatalogDeck(defaultDeck: DefaultDeck): Promise<DeckItem> {
   ]);
 
   if (isErrorResponse(res)) {
-    throw new Error(`failed to fetch default deck ${defaultDeck.catalogId}: ${getErrorCode(res) ?? "unknown error"}`);
+    throw new Error(
+      `failed to fetch default deck ${defaultDeck.catalogId}: ${getErrorMessage(res) ?? getErrorCode(res) ?? "unknown error"}`,
+    );
   }
   if (res["schema"] !== "fishword.protocol.catalog_fetch.v1") {
     throw new Error(`unexpected catalog fetch response for ${defaultDeck.catalogId}`);
@@ -95,7 +104,7 @@ export async function seedDefaultDecks(ctx: ExtensionContext): Promise<void> {
     if (!hadActiveDeck && seededDecks[0]) {
       await runFishword(["deck", "use", String(seededDecks[0].id), "--json"]);
     }
-  } catch {
-    ctx.ui.notify("Fishword 默认词库初始化失败", "error");
+  } catch (err) {
+    ctx.ui.notify(`Fishword 默认词库初始化失败: ${describeFishwordError(err)}`, "error");
   }
 }

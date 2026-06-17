@@ -2,7 +2,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Theme } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
 import { Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { getErrorCode, isErrorResponse, runFishword } from "../fishword.ts";
+import { describeFishwordError, getErrorCode, getErrorMessage, isErrorResponse, runFishword } from "../fishword.ts";
 import type { CatalogDeckEntry, CatalogFetchResponse, CatalogListResponse, DeckDeleteResponse, DeckItem } from "../types.ts";
 import { handleVisibilityShortcut, type VisibilityShortcutOptions } from "./visibilityShortcut.ts";
 
@@ -52,7 +52,7 @@ export function showDeckManagerOverlay(ctx: ExtensionContext, options: DeckManag
     try {
       const res = await runFishword(["catalog", "list", "--json"]);
       if (isErrorResponse(res)) {
-        catalogState = { kind: "error", msg: getErrorCode(res) ?? "unknown error" };
+        catalogState = { kind: "error", msg: getErrorMessage(res) ?? getErrorCode(res) ?? "unknown error" };
       } else if (res["schema"] === "fishword.protocol.catalog_list.v1") {
         catalogState = {
           kind: "ready",
@@ -63,8 +63,8 @@ export function showDeckManagerOverlay(ctx: ExtensionContext, options: DeckManag
       } else {
         catalogState = { kind: "error", msg: "protocol mismatch" };
       }
-    } catch {
-      catalogState = { kind: "error", msg: "network error" };
+    } catch (err) {
+      catalogState = { kind: "error", msg: describeFishwordError(err) };
     }
     requestRender?.();
   }
@@ -250,7 +250,7 @@ export function showDeckManagerOverlay(ctx: ExtensionContext, options: DeckManag
     try {
       const res = await runFishword(["catalog", "fetch", deck.id, "--json"]);
       if (isErrorResponse(res)) {
-        setStatus(`下载失败: ${getErrorCode(res) ?? "unknown"}`);
+        setStatus(`下载失败: ${getErrorMessage(res) ?? getErrorCode(res) ?? "unknown"}`);
       } else if (res["schema"] === "fishword.protocol.catalog_fetch.v1") {
         const r = res as unknown as CatalogFetchResponse;
         downloadedIds.add(deck.id);
@@ -260,8 +260,8 @@ export function showDeckManagerOverlay(ctx: ExtensionContext, options: DeckManag
       } else {
         setStatus("下载失败: 协议不匹配");
       }
-    } catch {
-      setStatus("下载失败: 网络错误");
+    } catch (err) {
+      setStatus(`下载失败: ${describeFishwordError(err)}`);
     }
 
     if (catalogState.kind === "ready") {
