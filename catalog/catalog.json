@@ -1,9 +1,11 @@
 {
-  "schema": "fishword.catalog.v1",
-  "updated_at": "2026-06-16T08:30:15.634Z",
+  "schema": "fishword.catalog.v2",
+  "updated_at": "2026-06-17T09:01:09.071Z",
   "decks": [
     {
-      "id": "ielts-qwerty",
+      "id": "qwerty:ielts",
+      "slug": "ielts",
+      "source_id": "qwerty",
       "name": "IELTS",
       "description": "雅思核心词汇，来自 Qwerty Learner",
       "language": "en",
@@ -17,11 +19,13 @@
         "name": "qwerty-learner",
         "license": "GPL-3.0"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/ielts-qwerty.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-ielts.jsonl",
       "size_bytes": 908443
     },
     {
-      "id": "gre-qwerty",
+      "id": "qwerty:gre",
+      "slug": "gre",
+      "source_id": "qwerty",
       "name": "GRE",
       "description": "GRE 核心词汇，来自 Qwerty Learner",
       "language": "en",
@@ -35,11 +39,13 @@
         "name": "qwerty-learner",
         "license": "GPL-3.0"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/gre-qwerty.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-gre.jsonl",
       "size_bytes": 1558213
     },
     {
-      "id": "sat-qwerty",
+      "id": "qwerty:sat",
+      "slug": "sat",
+      "source_id": "qwerty",
       "name": "SAT",
       "description": "SAT 核心词汇，来自 Qwerty Learner",
       "language": "en",
@@ -53,11 +59,13 @@
         "name": "qwerty-learner",
         "license": "GPL-3.0"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/sat-qwerty.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-sat.jsonl",
       "size_bytes": 1069672
     },
     {
-      "id": "oxford3000",
+      "id": "qwerty:oxford3000",
+      "slug": "oxford3000",
+      "source_id": "qwerty",
       "name": "Oxford 3000",
       "description": "牛津 3000 核心词汇，来自 Qwerty Learner",
       "language": "en",
@@ -70,11 +78,13 @@
         "name": "qwerty-learner",
         "license": "GPL-3.0"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/oxford3000.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-oxford3000.jsonl",
       "size_bytes": 378029
     },
     {
-      "id": "oxford5000",
+      "id": "qwerty:oxford5000",
+      "slug": "oxford5000",
+      "source_id": "qwerty",
       "name": "Oxford 5000",
       "description": "牛津 5000 核心词汇，来自 Qwerty Learner",
       "language": "en",
@@ -87,11 +97,13 @@
         "name": "qwerty-learner",
         "license": "GPL-3.0"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/oxford5000.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-oxford5000.jsonl",
       "size_bytes": 4363056
     },
     {
-      "id": "cet4",
+      "id": "kajweb:cet4",
+      "slug": "cet4",
+      "source_id": "kajweb",
       "name": "CET-4",
       "description": "大学英语四级词汇，含词性、例句",
       "language": "en",
@@ -104,11 +116,13 @@
       "source": {
         "name": "kajweb/dict"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/cet4.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/kajweb-cet4.jsonl",
       "size_bytes": 1235402
     },
     {
-      "id": "cet6",
+      "id": "kajweb:cet6",
+      "slug": "cet6",
+      "source_id": "kajweb",
       "name": "CET-6",
       "description": "大学英语六级词汇，含词性、例句",
       "language": "en",
@@ -121,11 +135,13 @@
       "source": {
         "name": "kajweb/dict"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/cet6.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/kajweb-cet6.jsonl",
       "size_bytes": 1111195
     },
     {
-      "id": "toefl",
+      "id": "kajweb:toefl",
+      "slug": "toefl",
+      "source_id": "kajweb",
       "name": "TOEFL",
       "description": "托福词汇，含词性、例句",
       "language": "en",
@@ -138,7 +154,7 @@
       "source": {
         "name": "kajweb/dict"
       },
-      "url": "https://chenggou1.github.io/fishword/catalog/toefl.jsonl",
+      "url": "https://chenggou1.github.io/fishword/catalog/kajweb-toefl.jsonl",
       "size_bytes": 2868648
     }
   ]
