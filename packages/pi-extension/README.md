@@ -2,9 +2,7 @@
 
 Fishword 的 Pi 编程助手扩展，在编程时内嵌间隔重复词汇学习。
 
-[GitHub 仓库](https://github.com/Chenggou1/fishword)
-
-[观看演示视频](https://media.githubusercontent.com/media/Chenggou1/fishword/main/docs/videos/pi-extension-demo.mp4)
+[GitHub 仓库](https://github.com/Chenggou1/fishword) · [产品展示页](https://chenggou1.github.io/fishword/)
 
 ## 安装
 

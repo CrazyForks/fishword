@@ -34,4 +34,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist/catalog
           destination_dir: catalog
-          keep_files: false
+          keep_files: true
