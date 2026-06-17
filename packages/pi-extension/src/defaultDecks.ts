@@ -1,12 +1,10 @@
-import { fileURLToPath } from "node:url";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getErrorCode, isErrorResponse, runFishword, runFishwordText } from "./fishword.ts";
 import type { DeckItem } from "./types.ts";
 
 type DefaultDeck = {
+  catalogId: string;
   name: string;
-  description: string;
-  asset: string;
 };
 
 type CardListResponse = {
@@ -16,25 +14,18 @@ type CardListResponse = {
 
 const DEFAULT_DECKS: DefaultDeck[] = [
   {
+    catalogId: "cet4",
     name: "CET-4",
-    description: "大学英语四级",
-    asset: "cet4.jsonl",
   },
   {
+    catalogId: "cet6",
     name: "CET-6",
-    description: "大学英语六级",
-    asset: "cet6.jsonl",
   },
   {
+    catalogId: "toefl",
     name: "TOEFL",
-    description: "托福",
-    asset: "toefl.jsonl",
   },
 ];
-
-function assetPath(fileName: string): string {
-  return fileURLToPath(new URL(`../assets/dicts/kajweb/${fileName}`, import.meta.url));
-}
 
 async function listDecks(): Promise<DeckItem[]> {
   const res = await runFishword(["deck", "list", "--json"]);
@@ -42,35 +33,6 @@ async function listDecks(): Promise<DeckItem[]> {
     throw new Error("unexpected deck list response");
   }
   return res["decks"] as DeckItem[];
-}
-
-async function createDeck(defaultDeck: DefaultDeck): Promise<DeckItem> {
-  const res = await runFishword([
-    "deck",
-    "create",
-    defaultDeck.name,
-    "--description",
-    defaultDeck.description,
-    "--json",
-  ]);
-
-  if (isErrorResponse(res)) {
-    const code = getErrorCode(res);
-    if (code !== "deck_already_exists") {
-      throw new Error(`failed to create default deck ${defaultDeck.name}: ${code ?? "unknown error"}`);
-    }
-    const existing = (await listDecks()).find((deck) => deck.name === defaultDeck.name);
-    if (existing) return existing;
-    throw new Error(`default deck exists but cannot be listed: ${defaultDeck.name}`);
-  }
-
-  const deck = res["deck"] as { id: number; name: string; description?: string };
-  return {
-    id: deck.id,
-    name: deck.name,
-    description: deck.description,
-    active: false,
-  };
 }
 
 async function cardCount(deckId: number): Promise<number> {
@@ -81,21 +43,39 @@ async function cardCount(deckId: number): Promise<number> {
   return (res as CardListResponse).pagination.total;
 }
 
-async function ensureDefaultDeck(defaultDeck: DefaultDeck, decks: DeckItem[]): Promise<DeckItem> {
-  const deck = decks.find((item) => item.name === defaultDeck.name) ?? (await createDeck(defaultDeck));
-  if ((await cardCount(deck.id)) === 0) {
-    // Keep the explicit create + --deck flow so bundled decks retain descriptions.
-    await runFishwordText([
-      "import",
-      "jsonl",
-      assetPath(defaultDeck.asset),
-      "--deck",
-      String(deck.id),
-      "--duplicates",
-      "merge",
-    ]);
+async function fetchCatalogDeck(defaultDeck: DefaultDeck): Promise<DeckItem> {
+  const res = await runFishword([
+    "catalog",
+    "fetch",
+    defaultDeck.catalogId,
+    "--duplicates",
+    "merge",
+    "--json",
+  ]);
+
+  if (isErrorResponse(res)) {
+    throw new Error(`failed to fetch default deck ${defaultDeck.catalogId}: ${getErrorCode(res) ?? "unknown error"}`);
+  }
+  if (res["schema"] !== "fishword.protocol.catalog_fetch.v1") {
+    throw new Error(`unexpected catalog fetch response for ${defaultDeck.catalogId}`);
+  }
+
+  const imported = res["import"] as { deck_id?: number };
+  const decks = await listDecks();
+  const deck = decks.find((item) => item.id === imported.deck_id);
+  if (!deck) {
+    throw new Error(`fetched default deck cannot be listed: ${defaultDeck.catalogId}`);
   }
   return deck;
+}
+
+async function ensureDefaultDeck(defaultDeck: DefaultDeck, decks: DeckItem[]): Promise<DeckItem> {
+  const existing = decks.find((item) => item.name === defaultDeck.name);
+  if (existing && (await cardCount(existing.id)) > 0) {
+    return existing;
+  }
+
+  return fetchCatalogDeck(defaultDeck);
 }
 
 export async function seedDefaultDecks(ctx: ExtensionContext): Promise<void> {

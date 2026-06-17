@@ -12,12 +12,10 @@
     "fsrs"
   ],
   "files": [
-    "dist/",
-    "assets/"
+    "dist/"
   ],
   "scripts": {
-    "prepare-assets": "node ../../scripts/prepare-pi-extension-assets.mjs",
-    "build": "pnpm run prepare-assets && esbuild src/index.ts --bundle --platform=node --format=esm --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-tui --external:@fishword/cli --outfile=dist/index.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-tui --external:@fishword/cli --outfile=dist/index.js",
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

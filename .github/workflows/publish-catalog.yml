@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - "assets/dicts/**"
-      - "packages/pi-extension/assets/dicts/**"
       - "scripts/convert-qwerty-decks.mjs"
   workflow_dispatch:
 
