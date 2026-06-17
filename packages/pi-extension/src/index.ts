@@ -64,7 +64,8 @@ export default function (pi: ExtensionAPI) {
       !isFishwordHidden &&
       !cardOverlayHandle &&
       !cardDetailHandle &&
-      !statsOverlayHandle
+      !statsOverlayHandle &&
+      !deckManagerHandle
     ) {
       await refreshDisplay(ctx);
     }

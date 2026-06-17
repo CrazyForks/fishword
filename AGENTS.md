@@ -246,6 +246,7 @@ HOME=/private/tmp/fishword-test ./target/debug/fishword init
 - Use pnpm workspace commands for JavaScript packages.
 - Keep frontend-facing integrations on the JSON protocol.
 - Do not parse human-readable CLI output in the Pi extension or other integrations.
+- When adding a Pi overlay, track its `OverlayHandle` in `packages/pi-extension/src/index.ts` and include it in the Boss-key hide/summon state checks. Opening a modal-style overlay such as deck management should not allow the review card overlay to reappear on the next Boss-key restore.
 - `current` and `status` must not write review logs.
 - Only explicit `rate again|hard|good|easy` writes `review_log` and updates `card_state`.
 - Do not make Rust `init` aware of npm package paths; package-local asset lookup belongs in the Pi extension.
