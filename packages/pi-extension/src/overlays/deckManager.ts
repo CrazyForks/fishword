@@ -222,9 +222,11 @@ export function showDeckManagerOverlay(ctx: ExtensionContext, options: DeckManag
     let hint: string;
     if (activeTab === "catalog") {
       const st = catalogState;
-      const isDownloading = st.kind === "ready" && st.downloading !== null;
-      hint = isDownloading
-        ? "下载中..."
+      const downloadingDeck = st.kind === "ready" && st.downloading
+        ? st.decks.find((deck) => deck.id === st.downloading)
+        : null;
+      hint = downloadingDeck
+        ? `正在下载 ${downloadingDeck.name}...`
         : "Enter 下载    Esc 关闭";
     } else {
       const st = myDecksState;

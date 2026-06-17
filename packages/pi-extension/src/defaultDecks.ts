@@ -19,6 +19,8 @@ type CardListResponse = {
   pagination: { total: number };
 };
 
+const DEFAULT_DECK_NOTIFY_DELAY_MS = 700;
+
 const DEFAULT_DECKS: DefaultDeck[] = [
   {
     catalogId: "kajweb:cet4",
@@ -78,16 +80,61 @@ async function fetchCatalogDeck(defaultDeck: DefaultDeck): Promise<DeckItem> {
   return deck;
 }
 
-async function ensureDefaultDeck(defaultDeck: DefaultDeck, decks: DeckItem[]): Promise<DeckItem> {
+async function existingSeededDeck(defaultDeck: DefaultDeck, decks: DeckItem[]): Promise<DeckItem | null> {
   const existing = decks.find((item) => item.name === defaultDeck.name);
   if (existing && (await cardCount(existing.id)) > 0) {
     return existing;
   }
 
-  return fetchCatalogDeck(defaultDeck);
+  return null;
+}
+
+function createDefaultDeckNotifier(ctx: ExtensionContext): {
+  progress: (message: string) => void;
+  success: (message: string) => void;
+  cancel: () => void;
+} {
+  let hasNotified = false;
+  let latestMessage = "Fishword 正在准备默认词库...";
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearTimer(): void {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+
+  return {
+    progress(message: string) {
+      latestMessage = message;
+      if (hasNotified) {
+        ctx.ui.notify(message, "info");
+        return;
+      }
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = null;
+          hasNotified = true;
+          ctx.ui.notify(latestMessage, "info");
+        }, DEFAULT_DECK_NOTIFY_DELAY_MS);
+      }
+    },
+    success(message: string) {
+      clearTimer();
+      if (hasNotified) {
+        ctx.ui.notify(message, "info");
+      }
+    },
+    cancel() {
+      clearTimer();
+    },
+  };
 }
 
 export async function seedDefaultDecks(ctx: ExtensionContext): Promise<void> {
+  const notifier = createDefaultDeckNotifier(ctx);
+
   try {
     await runFishwordText(["init"]);
 
@@ -95,8 +142,15 @@ export async function seedDefaultDecks(ctx: ExtensionContext): Promise<void> {
     const hadActiveDeck = decks.some((deck) => deck.active);
     const seededDecks: DeckItem[] = [];
 
-    for (const defaultDeck of DEFAULT_DECKS) {
-      const deck = await ensureDefaultDeck(defaultDeck, decks);
+    for (let i = 0; i < DEFAULT_DECKS.length; i++) {
+      const defaultDeck = DEFAULT_DECKS[i];
+      let deck = await existingSeededDeck(defaultDeck, decks);
+
+      if (!deck) {
+        notifier.progress(`Fishword 正在准备默认词库 ${i + 1}/${DEFAULT_DECKS.length}: ${defaultDeck.name}`);
+        deck = await fetchCatalogDeck(defaultDeck);
+      }
+
       seededDecks.push(deck);
       decks = await listDecks();
     }
@@ -104,7 +158,10 @@ export async function seedDefaultDecks(ctx: ExtensionContext): Promise<void> {
     if (!hadActiveDeck && seededDecks[0]) {
       await runFishword(["deck", "use", String(seededDecks[0].id), "--json"]);
     }
+
+    notifier.success("Fishword 默认词库已准备好");
   } catch (err) {
+    notifier.cancel();
     ctx.ui.notify(`Fishword 默认词库初始化失败: ${describeFishwordError(err)}`, "error");
   }
 }
