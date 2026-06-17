@@ -42,13 +42,13 @@ try {
     "import",
     "jsonl",
     "crates/fishword-core/fixtures/deck_v1_sample.jsonl",
-    "--name",
+    "--create-deck",
     "smoke",
   ]);
   const decks = run(["deck", "list", "--json"], { json: true });
   const importedDeck = decks.decks?.find((deck) => deck.name === "smoke");
   if (!importedDeck?.id) {
-    throw new Error(`import --name did not create the smoke deck: ${JSON.stringify(decks)}`);
+    throw new Error(`import --create-deck did not create the smoke deck: ${JSON.stringify(decks)}`);
   }
   const deckId = importedDeck.id;
 

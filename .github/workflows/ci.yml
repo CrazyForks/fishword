@@ -102,6 +102,8 @@ jobs:
             if (!Array.isArray(c.decks) || c.decks.length === 0) throw new Error('catalog is empty');
             console.log('catalog ok:', c.decks.length, 'decks');
             c.decks.forEach(d => {
-              if (!d.id || !d.url || !d.word_count) throw new Error('invalid deck entry: ' + JSON.stringify(d));
+              if (!d.id || !d.slug || !d.source_id || !d.name || !d.url || !d.word_count) throw new Error('invalid deck entry: ' + JSON.stringify(d));
+              if (!/^[a-z][a-z0-9-]*:[a-z0-9-]+$/.test(d.id)) throw new Error('invalid catalog id: ' + d.id);
+              if (!d.url.endsWith('/' + d.source_id + '-' + d.slug + '.jsonl')) throw new Error('invalid deck url: ' + d.url);
             });
           "

@@ -13,19 +13,40 @@ use crate::{
     util::{open_storage, print_json},
 };
 
-pub fn cmd_import(command: ImportCmd) -> Result<()> {
-    let ImportCmd::Jsonl(args) = command;
-    let cards = import_jsonl_file(&args.path)
-        .with_context(|| format!("failed to parse {}", args.path.display()))?;
-    persist_import(args, cards)
+enum ImportTarget {
+    ExistingDeck(i64),
+    CreateDeck(String),
 }
 
-fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCard>) -> Result<()> {
-    let duplicate_strategy = DuplicateStrategy::from_str(&args.duplicates)
-        .with_context(|| format!("invalid --duplicates value '{}'", args.duplicates))?;
+pub fn cmd_import(command: ImportCmd) -> Result<()> {
+    let ImportCmd::Jsonl(args) = command;
+    let target = ImportTarget::from_args(&args)?;
+    let cards = import_jsonl_file(&args.path)
+        .with_context(|| format!("failed to parse {}", args.path.display()))?;
+    persist_import(target, cards, &args.duplicates, args.json)
+}
+
+impl ImportTarget {
+    fn from_args(args: &ImportArgs) -> Result<Self> {
+        match (args.deck_id, args.create_deck.as_deref()) {
+            (Some(deck_id), None) => Ok(Self::ExistingDeck(deck_id)),
+            (None, Some(name)) => Ok(Self::CreateDeck(name.to_string())),
+            _ => anyhow::bail!("pass exactly one of --deck-id or --create-deck"),
+        }
+    }
+}
+
+fn persist_import(
+    target: ImportTarget,
+    cards: Vec<fishword_core::importer::ImportCard>,
+    duplicates: &str,
+    json: bool,
+) -> Result<()> {
+    let duplicate_strategy = DuplicateStrategy::from_str(duplicates)
+        .with_context(|| format!("invalid --duplicates value '{duplicates}'"))?;
     let storage = open_storage()?;
-    let (db_deck, summary) = match (args.deck, args.name.as_deref()) {
-        (Some(deck_id), None) => {
+    let (db_deck, summary) = match target {
+        ImportTarget::ExistingDeck(deck_id) => {
             let db_deck = storage
                 .get_deck_by_id(deck_id)
                 .with_context(|| format!("failed to read deck {}", deck_id))?
@@ -40,8 +61,9 @@ fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCa
                 .context("failed to write imported cards")?;
             (db_deck, summary)
         }
-        (None, Some(name)) => import_into_new_deck(&storage, name, &cards, duplicate_strategy)?,
-        _ => anyhow::bail!("pass exactly one of --deck or --name"),
+        ImportTarget::CreateDeck(name) => {
+            import_into_new_deck(&storage, &name, &cards, duplicate_strategy)?
+        }
     };
     if storage
         .get_active_deck_id()
@@ -52,7 +74,7 @@ fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCa
             .set_active_deck_id(Some(db_deck.id))
             .context("failed to set active deck")?;
     }
-    if args.json {
+    if json {
         return print_json(&ImportResponse {
             schema: IMPORT_SCHEMA,
             deck_id: db_deck.id,
@@ -85,7 +107,7 @@ fn import_into_new_deck(
     match storage.import_cards_into_new_deck(name, None, cards, duplicate_strategy) {
         Ok(result) => Ok(result),
         Err(CoreError::AlreadyExists(_)) => anyhow::bail!(
-            "Deck already exists: {name}. Use `fishword deck list` to find its id, then import with `--deck <id>`."
+            "Deck already exists: {name}. Use `fishword deck list` to find its id, then import with `--deck-id <id>`."
         ),
         Err(e) => Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
     }

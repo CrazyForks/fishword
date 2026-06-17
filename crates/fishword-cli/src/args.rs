@@ -107,19 +107,19 @@ pub enum ImportCmd {
 #[derive(Parser)]
 #[command(group(
     ArgGroup::new("target")
-        .args(["deck", "name"])
+        .args(["deck_id", "create_deck"])
         .required(true)
         .multiple(false)
 ))]
 pub struct ImportArgs {
     /// Input file path.
     pub path: PathBuf,
-    /// Deck id (numeric, from `deck list`). Use this to import into an existing deck.
+    /// Local deck id (numeric, from `deck list`). Use this to import into an existing deck.
     #[arg(long)]
-    pub deck: Option<i64>,
-    /// New deck name. Use this to create a deck and import into it.
+    pub deck_id: Option<i64>,
+    /// Create a new local deck with this name and import into it.
     #[arg(long)]
-    pub name: Option<String>,
+    pub create_deck: Option<String>,
     /// Duplicate strategy: merge, skip, overwrite, keep.
     #[arg(long, default_value = "merge")]
     pub duplicates: String,
@@ -203,10 +203,10 @@ pub enum CatalogCmd {
         #[arg(long)]
         json: bool,
     },
-    /// Download and import a deck from the catalog by id.
+    /// Download and import a deck from the catalog by catalog id.
     Fetch {
-        /// Deck id from `catalog list`.
-        deck_id: String,
+        /// Catalog id from `catalog list`.
+        catalog_id: String,
         /// Duplicate strategy: merge, skip, overwrite, keep.
         #[arg(long, default_value = "merge")]
         duplicates: String,

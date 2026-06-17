@@ -122,6 +122,8 @@ pub struct DeckRenameResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct CatalogDeckEntry {
     pub id: String,
+    pub slug: String,
+    pub source_id: String,
     pub name: String,
     pub description: Option<String>,
     pub language: String,
@@ -141,7 +143,9 @@ pub struct CatalogListResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct CatalogFetchResponse {
     pub schema: &'static str,
-    pub deck_id: String,
+    pub catalog_id: String,
+    pub slug: String,
+    pub source_id: String,
     pub name: String,
     pub import: ImportResponse,
 }
@@ -995,6 +999,60 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn catalog_list_response_serializes_catalog_identity_fields() {
+        let value = serde_json::to_value(CatalogListResponse {
+            schema: CATALOG_LIST_SCHEMA,
+            decks: vec![CatalogDeckEntry {
+                id: "kajweb:cet4".to_string(),
+                slug: "cet4".to_string(),
+                source_id: "kajweb".to_string(),
+                name: "CET-4".to_string(),
+                description: Some("大学英语四级".to_string()),
+                language: "en".to_string(),
+                word_count: 4544,
+                tags: vec!["cet4".to_string(), "exam".to_string(), "zh".to_string()],
+                source: Some(Source {
+                    name: "kajweb/dict".to_string(),
+                    license: None,
+                }),
+                url: "https://example.invalid/catalog/kajweb-cet4.jsonl".to_string(),
+                size_bytes: 123,
+            }],
+        })
+        .unwrap();
+
+        assert_eq!(value["decks"][0]["id"], "kajweb:cet4");
+        assert_eq!(value["decks"][0]["slug"], "cet4");
+        assert_eq!(value["decks"][0]["source_id"], "kajweb");
+    }
+
+    #[test]
+    fn catalog_fetch_response_distinguishes_catalog_id_from_local_deck_id() {
+        let value = serde_json::to_value(CatalogFetchResponse {
+            schema: CATALOG_FETCH_SCHEMA,
+            catalog_id: "kajweb:cet4".to_string(),
+            slug: "cet4".to_string(),
+            source_id: "kajweb".to_string(),
+            name: "CET-4".to_string(),
+            import: ImportResponse {
+                schema: IMPORT_SCHEMA,
+                deck_id: 1,
+                deck: "CET-4".to_string(),
+                input: 4544,
+                inserted: 4544,
+                updated: 0,
+                merged: 0,
+                skipped: 0,
+            },
+        })
+        .unwrap();
+
+        assert_eq!(value["catalog_id"], "kajweb:cet4");
+        assert!(value.get("deck_id").is_none());
+        assert_eq!(value["import"]["deck_id"], 1);
     }
 
     #[test]

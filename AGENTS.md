@@ -27,7 +27,7 @@ Common command flow:
 ```bash
 fishword init
 fishword deck create CET-4 --description "大学英语四级" --json
-fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck <numeric-deck-id>
+fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck-id <numeric-deck-id>
 fishword current --json
 fishword rate good --json
 ```
@@ -36,13 +36,15 @@ Or use the catalog to download a pre-built deck in one step:
 
 ```bash
 fishword catalog list
-fishword catalog fetch cet4
-fishword catalog fetch toefl --duplicates merge --json
+fishword catalog fetch kajweb:cet4
+fishword catalog fetch kajweb:toefl --duplicates merge --json
 ```
 
 Important CLI details:
 
-- `import` currently takes a numeric deck id via `--deck`; create or list decks first.
+- `import` currently takes a numeric local deck id via `--deck-id`; create or list decks first.
+- `import jsonl <path> --create-deck <name>` creates a new local deck and imports into it.
+- `catalog fetch` takes a catalog id such as `kajweb:cet4`, not a local numeric deck id.
 - `catalog fetch` creates a new deck automatically (or merges into an existing one with the same name).
 - There is no standalone `next` command in the current CLI. Use `current` to select/show the current card, and `rate again|hard|good|easy --json` to record a review and receive the next card.
 - Set `FISHWORD_CATALOG_URL` to override the catalog endpoint (useful for offline testing or self-hosted mirrors).
@@ -248,6 +250,24 @@ HOME=/private/tmp/fishword-test ./target/debug/fishword init
 - Only explicit `rate again|hard|good|easy` writes `review_log` and updates `card_state`.
 - Do not make Rust `init` aware of npm package paths; package-local asset lookup belongs in the Pi extension.
 - Keep dictionary data tracked by Git LFS.
+
+## Commit Message Format
+
+When creating Git commits, use the exact `type: message` format.
+
+Examples:
+
+```text
+refactor: refine catalog identifiers
+fix: handle empty import files
+docs: update catalog examples
+test: cover import target arguments
+```
+
+Use a lowercase type such as `feat`, `fix`, `refactor`, `docs`, `test`,
+`chore`, or `ci`, followed by a colon, one space, and a concise imperative
+message. Do not use `type!:` / `feat!:` syntax unless the user explicitly asks
+for it.
 
 Useful verification commands:
 

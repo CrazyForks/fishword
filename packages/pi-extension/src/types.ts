@@ -68,6 +68,8 @@ export const RATINGS: { rating: Rating; key: KeyId }[] = [
 
 export type CatalogDeckEntry = {
   id: string;
+  slug: string;
+  source_id: string;
   name: string;
   description?: string;
   language: string;
@@ -85,7 +87,9 @@ export type CatalogListResponse = {
 
 export type CatalogFetchResponse = {
   schema: "fishword.protocol.catalog_fetch.v1";
-  deck_id: string;
+  catalog_id: string;
+  slug: string;
+  source_id: string;
   name: string;
   import: {
     schema: string;

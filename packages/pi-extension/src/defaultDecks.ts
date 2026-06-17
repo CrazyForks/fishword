@@ -14,15 +14,15 @@ type CardListResponse = {
 
 const DEFAULT_DECKS: DefaultDeck[] = [
   {
-    catalogId: "cet4",
+    catalogId: "kajweb:cet4",
     name: "CET-4",
   },
   {
-    catalogId: "cet6",
+    catalogId: "kajweb:cet6",
     name: "CET-6",
   },
   {
-    catalogId: "toefl",
+    catalogId: "kajweb:toefl",
     name: "TOEFL",
   },
 ];

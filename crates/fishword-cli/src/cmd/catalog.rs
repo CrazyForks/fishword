@@ -33,6 +33,8 @@ struct CatalogJson {
 #[derive(Debug, Deserialize)]
 struct CatalogEntryJson {
     id: String,
+    slug: String,
+    source_id: String,
     name: String,
     description: Option<String>,
     #[serde(default = "default_language")]
@@ -58,10 +60,10 @@ pub fn cmd_catalog(sub: CatalogCmd) -> Result<()> {
     match sub {
         CatalogCmd::List { json } => catalog_list(json),
         CatalogCmd::Fetch {
-            deck_id,
+            catalog_id,
             duplicates,
             json,
-        } => catalog_fetch(&deck_id, &duplicates, json),
+        } => catalog_fetch(&catalog_id, &duplicates, json),
     }
 }
 
@@ -75,6 +77,8 @@ fn catalog_list(json: bool) -> Result<()> {
             .into_iter()
             .map(|e| CatalogDeckEntry {
                 id: e.id,
+                slug: e.slug,
+                source_id: e.source_id,
                 name: e.name,
                 description: e.description,
                 language: e.language,
@@ -111,31 +115,35 @@ fn catalog_list(json: bool) -> Result<()> {
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
-fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
+fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
     let duplicate_strategy = DuplicateStrategy::from_str(duplicates)
         .with_context(|| format!("invalid --duplicates value '{duplicates}'"))?;
 
     let catalog = fetch_catalog(json)?;
-    let entry = match catalog.decks.into_iter().find(|e| e.id == deck_id) {
+    let entry = match catalog.decks.into_iter().find(|e| e.id == catalog_id) {
         Some(e) => e,
         None if json => {
             exit_json_error(
                 "deck_not_found",
                 &format!(
-                    "Deck '{deck_id}' not found in catalog. Run `fishword catalog list` to see available decks."
+                    "Catalog deck '{catalog_id}' not found. Run `fishword catalog list` to see available decks."
                 ),
             );
         }
         None => anyhow::bail!(
-            "Deck '{deck_id}' not found in catalog. Run `fishword catalog list` to see available decks."
+            "Catalog deck '{catalog_id}' not found. Run `fishword catalog list` to see available decks."
         ),
     };
 
-    let jsonl_body = fetch_url(&entry.url, json)
-        .with_context(|| format!("failed to download deck '{deck_id}' from {}", entry.url))?;
+    let jsonl_body = fetch_url(&entry.url, json).with_context(|| {
+        format!(
+            "failed to download catalog deck '{catalog_id}' from {}",
+            entry.url
+        )
+    })?;
 
     let cards = import_jsonl_str(&jsonl_body)
-        .with_context(|| format!("failed to parse JSONL for deck '{deck_id}'"))?;
+        .with_context(|| format!("failed to parse JSONL for catalog deck '{catalog_id}'"))?;
 
     let storage = open_storage()?;
 
@@ -144,7 +152,7 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
     // the display name (e.g. one the user created by hand) is never touched silently;
     // see the AlreadyExists arm below for that case.
     let (db_deck, summary) = if let Some(existing) = storage
-        .get_deck_by_catalog_id(deck_id)
+        .get_deck_by_catalog_id(catalog_id)
         .context("failed to look up existing catalog deck")?
     {
         let s = storage
@@ -157,12 +165,12 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
             None,
             &cards,
             duplicate_strategy,
-            Some(deck_id),
+            Some(catalog_id),
         ) {
             Ok(result) => result,
             Err(CoreError::AlreadyExists(_)) => {
                 let message = format!(
-                    "A deck named '{}' already exists but was not created by `fishword catalog fetch {deck_id}`. \
+                    "A deck named '{}' already exists but was not created by `fishword catalog fetch {catalog_id}`. \
                      Refusing to merge into it to avoid mixing unrelated data. \
                      Rename or delete that deck, then retry.",
                     entry.name
@@ -201,7 +209,9 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
     if json {
         return print_json(&CatalogFetchResponse {
             schema: CATALOG_FETCH_SCHEMA,
-            deck_id: deck_id.to_string(),
+            catalog_id: catalog_id.to_string(),
+            slug: entry.slug,
+            source_id: entry.source_id,
             name: db_deck.name,
             import: import_response,
         });

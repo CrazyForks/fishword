@@ -56,7 +56,7 @@ fn assert_failure(output: std::process::Output) {
 }
 
 #[test]
-fn import_with_name_creates_deck_and_imports_cards() {
+fn import_with_create_deck_creates_deck_and_imports_cards() {
     let home = temp_home("import-name");
     let jsonl = write_jsonl(&home);
 
@@ -67,7 +67,7 @@ fn import_with_name_creates_deck_and_imports_cards() {
             "import",
             "jsonl",
             jsonl.to_str().unwrap(),
-            "--name",
+            "--create-deck",
             "Imported",
         ],
     ));
@@ -81,7 +81,7 @@ fn import_with_name_creates_deck_and_imports_cards() {
 }
 
 #[test]
-fn import_with_deck_still_imports_into_existing_deck() {
+fn import_with_deck_id_still_imports_into_existing_deck() {
     let home = temp_home("import-deck");
     let jsonl = write_jsonl(&home);
 
@@ -89,7 +89,7 @@ fn import_with_deck_still_imports_into_existing_deck() {
     assert_success(fishword(&home, &["deck", "create", "Existing"]));
     let output = assert_success(fishword(
         &home,
-        &["import", "jsonl", jsonl.to_str().unwrap(), "--deck", "1"],
+        &["import", "jsonl", jsonl.to_str().unwrap(), "--deck-id", "1"],
     ));
     let cards = assert_success(fishword(&home, &["card", "list", "--deck", "1"]));
 
@@ -99,7 +99,7 @@ fn import_with_deck_still_imports_into_existing_deck() {
 }
 
 #[test]
-fn import_target_must_be_name_or_deck() {
+fn import_target_must_be_create_deck_or_deck_id() {
     let home = temp_home("import-target");
     let jsonl = write_jsonl(&home);
 
@@ -114,16 +114,16 @@ fn import_target_must_be_name_or_deck() {
             "import",
             "jsonl",
             jsonl.to_str().unwrap(),
-            "--deck",
+            "--deck-id",
             "1",
-            "--name",
+            "--create-deck",
             "Imported",
         ],
     ));
 }
 
 #[test]
-fn import_with_name_rejects_existing_deck() {
+fn import_with_create_deck_rejects_existing_deck() {
     let home = temp_home("import-name-existing");
     let jsonl = write_jsonl(&home);
 
@@ -135,7 +135,7 @@ fn import_with_name_rejects_existing_deck() {
             "import",
             "jsonl",
             jsonl.to_str().unwrap(),
-            "--name",
+            "--create-deck",
             "Existing",
         ],
     ));

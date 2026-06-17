@@ -1143,7 +1143,10 @@ mod tests {
         // A manually created deck has no catalog_id.
         let manual = storage.insert_deck("CET-4", None).unwrap();
         assert_eq!(manual.catalog_id, None);
-        assert!(storage.get_deck_by_catalog_id("cet4").unwrap().is_none());
+        assert!(storage
+            .get_deck_by_catalog_id("kajweb:cet4")
+            .unwrap()
+            .is_none());
 
         // Creating a catalog-tagged deck with a *different* name persists catalog_id
         // and is then discoverable by it.
@@ -1153,11 +1156,14 @@ mod tests {
                 None,
                 &[],
                 DuplicateStrategy::Merge,
-                Some("cet4"),
+                Some("kajweb:cet4"),
             )
             .unwrap();
-        assert_eq!(catalog_deck.catalog_id.as_deref(), Some("cet4"));
-        let found = storage.get_deck_by_catalog_id("cet4").unwrap().unwrap();
+        assert_eq!(catalog_deck.catalog_id.as_deref(), Some("kajweb:cet4"));
+        let found = storage
+            .get_deck_by_catalog_id("kajweb:cet4")
+            .unwrap()
+            .unwrap();
         assert_eq!(found.id, catalog_deck.id);
 
         // The manually created deck with the colliding display name is untouched and
@@ -1172,11 +1178,14 @@ mod tests {
                 None,
                 &[],
                 DuplicateStrategy::Merge,
-                Some("cet6"),
+                Some("kajweb:cet6"),
             )
             .unwrap();
-        assert_eq!(other.catalog_id.as_deref(), Some("cet6"));
-        assert!(storage.get_deck_by_catalog_id("toefl").unwrap().is_none());
+        assert_eq!(other.catalog_id.as_deref(), Some("kajweb:cet6"));
+        assert!(storage
+            .get_deck_by_catalog_id("kajweb:toefl")
+            .unwrap()
+            .is_none());
     }
 
     #[test]

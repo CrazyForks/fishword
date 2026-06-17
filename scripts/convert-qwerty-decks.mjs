@@ -5,7 +5,7 @@
  *
  * Output: dist/catalog/
  *   catalog.json          — index of all published decks
- *   <deck-id>.jsonl       — one fishword.deck.v1 JSONL file per deck
+ *   <source-id>-<slug>.jsonl — one fishword.deck.v1 JSONL file per deck
  *
  * Usage: node scripts/convert-qwerty-decks.mjs
  */
@@ -28,35 +28,40 @@ const OUT_DIR = path.join(ROOT, "dist/catalog");
 const QWERTY_DECKS = [
   {
     srcFile: "IELTS_3_T.json",
-    id: "ielts-qwerty",
+    sourceId: "qwerty",
+    slug: "ielts",
     name: "IELTS",
     description: "雅思核心词汇，来自 Qwerty Learner",
     tags: ["ielts", "exam", "zh"],
   },
   {
     srcFile: "GRE_3_T.json",
-    id: "gre-qwerty",
+    sourceId: "qwerty",
+    slug: "gre",
     name: "GRE",
     description: "GRE 核心词汇，来自 Qwerty Learner",
     tags: ["gre", "exam", "zh"],
   },
   {
     srcFile: "SAT_3_T.json",
-    id: "sat-qwerty",
+    sourceId: "qwerty",
+    slug: "sat",
     name: "SAT",
     description: "SAT 核心词汇，来自 Qwerty Learner",
     tags: ["sat", "exam", "zh"],
   },
   {
     srcFile: "Oxford3000.json",
-    id: "oxford3000",
+    sourceId: "qwerty",
+    slug: "oxford3000",
     name: "Oxford 3000",
     description: "牛津 3000 核心词汇，来自 Qwerty Learner",
     tags: ["oxford", "reference"],
   },
   {
     srcFile: "Oxford5000.json",
-    id: "oxford5000",
+    sourceId: "qwerty",
+    slug: "oxford5000",
     name: "Oxford 5000",
     description: "牛津 5000 核心词汇，来自 Qwerty Learner",
     tags: ["oxford", "reference"],
@@ -67,21 +72,24 @@ const QWERTY_DECKS = [
 const KAJWEB_DECKS = [
   {
     srcFile: "cet4.jsonl",
-    id: "cet4",
+    sourceId: "kajweb",
+    slug: "cet4",
     name: "CET-4",
     description: "大学英语四级词汇，含词性、例句",
     tags: ["cet4", "exam", "zh"],
   },
   {
     srcFile: "cet6.jsonl",
-    id: "cet6",
+    sourceId: "kajweb",
+    slug: "cet6",
     name: "CET-6",
     description: "大学英语六级词汇，含词性、例句",
     tags: ["cet6", "exam", "zh"],
   },
   {
     srcFile: "toefl.jsonl",
-    id: "toefl",
+    sourceId: "kajweb",
+    slug: "toefl",
     name: "TOEFL",
     description: "托福词汇，含词性、例句",
     tags: ["toefl", "exam", "zh"],
@@ -113,6 +121,14 @@ function qwertyWordToJsonlLine(word, tags) {
   return JSON.stringify(entry);
 }
 
+function catalogId(deck) {
+  return `${deck.sourceId}:${deck.slug}`;
+}
+
+function deckFilename(deck) {
+  return `${deck.sourceId}-${deck.slug}.jsonl`;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -128,28 +144,30 @@ for (const deck of QWERTY_DECKS) {
   }
 
   const words = JSON.parse(fs.readFileSync(srcPath, "utf8"));
-  // Derive base tag from id (strip -qwerty suffix if present)
-  const baseTag = deck.id.replace(/-qwerty$/, "");
+  const baseTag = deck.slug;
   const tags = Array.from(new Set([baseTag, ...deck.tags]));
 
   const lines = words.map((w) => qwertyWordToJsonlLine(w, tags));
-  const outPath = path.join(OUT_DIR, `${deck.id}.jsonl`);
+  const filename = deckFilename(deck);
+  const outPath = path.join(OUT_DIR, filename);
   fs.writeFileSync(outPath, lines.join("\n") + "\n", "utf8");
 
   const stat = fs.statSync(outPath);
   catalogDecks.push({
-    id: deck.id,
+    id: catalogId(deck),
+    slug: deck.slug,
+    source_id: deck.sourceId,
     name: deck.name,
     description: deck.description,
     language: "en",
     word_count: lines.length,
     tags: deck.tags,
     source: { name: "qwerty-learner", license: "GPL-3.0" },
-    url: `{BASE_URL}/${deck.id}.jsonl`,
+    url: `{BASE_URL}/${filename}`,
     size_bytes: stat.size,
   });
 
-  console.log(`[qwerty] ${deck.id}: ${lines.length} words → ${outPath}`);
+  console.log(`[qwerty] ${catalogId(deck)}: ${lines.length} words → ${outPath}`);
 }
 
 // 2. Copy kajweb JSONL files (already in fishword.deck.v1 format)
@@ -160,7 +178,8 @@ for (const deck of KAJWEB_DECKS) {
     continue;
   }
 
-  const outPath = path.join(OUT_DIR, `${deck.id}.jsonl`);
+  const filename = deckFilename(deck);
+  const outPath = path.join(OUT_DIR, filename);
   fs.copyFileSync(srcPath, outPath);
 
   const content = fs.readFileSync(outPath, "utf8");
@@ -168,18 +187,20 @@ for (const deck of KAJWEB_DECKS) {
   const stat = fs.statSync(outPath);
 
   catalogDecks.push({
-    id: deck.id,
+    id: catalogId(deck),
+    slug: deck.slug,
+    source_id: deck.sourceId,
     name: deck.name,
     description: deck.description,
     language: "en",
     word_count: wordCount,
     tags: deck.tags,
     source: { name: "kajweb/dict" },
-    url: `{BASE_URL}/${deck.id}.jsonl`,
+    url: `{BASE_URL}/${filename}`,
     size_bytes: stat.size,
   });
 
-  console.log(`[kajweb] ${deck.id}: ${wordCount} words → ${outPath}`);
+  console.log(`[kajweb] ${catalogId(deck)}: ${wordCount} words → ${outPath}`);
 }
 
 // 3. Generate catalog.json
@@ -195,7 +216,7 @@ const resolvedDecks = catalogDecks.map((d) => ({
 }));
 
 const catalog = {
-  schema: "fishword.catalog.v1",
+  schema: "fishword.catalog.v2",
   updated_at: new Date().toISOString(),
   decks: resolvedDecks,
 };
