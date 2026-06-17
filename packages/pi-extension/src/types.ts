@@ -65,3 +65,41 @@ export const RATINGS: { rating: Rating; key: KeyId }[] = [
   { rating: "good", key: "ctrl+shift+g" },
   { rating: "easy", key: "ctrl+shift+e" },
 ];
+
+export type CatalogDeckEntry = {
+  id: string;
+  name: string;
+  description?: string;
+  language: string;
+  word_count: number;
+  tags: string[];
+  source?: { name: string; license?: string | null } | null;
+  url: string;
+  size_bytes: number;
+};
+
+export type CatalogListResponse = {
+  schema: "fishword.protocol.catalog_list.v1";
+  decks: CatalogDeckEntry[];
+};
+
+export type CatalogFetchResponse = {
+  schema: "fishword.protocol.catalog_fetch.v1";
+  deck_id: string;
+  name: string;
+  import: {
+    schema: string;
+    deck_id: number;
+    deck: string;
+    input: number;
+    inserted: number;
+    updated: number;
+    merged: number;
+    skipped: number;
+  };
+};
+
+export type DeckDeleteResponse = {
+  schema: "fishword.protocol.deck_delete.v1";
+  deleted: { id: number; name: string };
+};

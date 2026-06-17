@@ -32,7 +32,7 @@ pi install npm:@fishword/pi-extension
 | `/fw` | 隐藏或唤起 Fishword UI |
 | `/fw-detail` | 打开当前单词的详情面板 |
 | `/fw-stats` | 查看今日进度和 7 日学习趋势 |
-| `/fw-deck` | 切换激活词库 |
+| `/fw-manage` | 词库管理：下载远程词库、切换或删除本地词库 |
 | `/fw-good` | 评分：good（记住了） |
 | `/fw-hard` | 评分：hard（有点难） |
 | `/fw-again` | 评分：again（没记住） |

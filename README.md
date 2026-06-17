@@ -64,9 +64,13 @@ pi install npm:@fishword/pi-extension
 
 例如：备考四级时激活 CET-4，考完后切换到 TOEFL 备考托福，两套进度互不干扰。
 
-### 切换词库
+### 词库管理
 
-输入 `/fw-deck` 打开词库选择器，选中后立即生效，词卡和统计均切换到对应词库。也可以通过 CLI 的 `fishword import jsonl` 导入自定义词汇文件（仅支持 fishword.deck.v1 JSONL 格式）。
+输入 `/fw-manage` 打开词库管理器，内含两个页面（左右箭头切换）：
+
+- **我的词库**：列出所有本地词库，`Enter` 切换激活词库，`d` 删除词库（需确认）。
+- **词库目录**：浏览远程词库目录，选中后按 `Enter` 下载并导入。目前提供 CET-4、CET-6、TOEFL、IELTS、GRE、SAT、Oxford 3000、Oxford 5000 等词库。
+
 
 ---
 

@@ -4,7 +4,7 @@ import { seedDefaultDecks } from "./defaultDecks.ts";
 import { getErrorCode, isErrorResponse, parseCardResponse, runFishword } from "./fishword.ts";
 import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
 import { showCardDetailOverlay } from "./overlays/cardDetail.ts";
-import { showDeckSelectorOverlay } from "./overlays/deckSelector.ts";
+import { showDeckManagerOverlay } from "./overlays/deckManager.ts";
 import { showStatsOverlay } from "./overlays/stats.ts";
 import type { CardResponse, DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
 import { RATINGS } from "./types.ts";
@@ -35,8 +35,8 @@ function commandDescription(description: string, shortcut?: string): string {
 export default function (pi: ExtensionAPI) {
   let cardOverlayHandle: OverlayHandle | null = null;
   let cardDetailHandle: OverlayHandle | null = null;
-  let deckSelectorHandle: OverlayHandle | null = null;
   let statsOverlayHandle: OverlayHandle | null = null;
+  let deckManagerHandle: OverlayHandle | null = null;
   let doneCheckTimer: ReturnType<typeof setInterval> | null = null;
   let isDone = false;
   let isFishwordHidden = false;
@@ -51,8 +51,8 @@ export default function (pi: ExtensionAPI) {
   function applyFishwordHidden(ctx: ExtensionContext): void {
     cardOverlayHandle?.setHidden(isFishwordHidden);
     cardDetailHandle?.setHidden(isFishwordHidden);
-    deckSelectorHandle?.setHidden(isFishwordHidden);
     statsOverlayHandle?.setHidden(isFishwordHidden);
+    deckManagerHandle?.setHidden(isFishwordHidden);
     ctx.ui.setStatus("fishword", isFishwordHidden ? undefined : lastStatusLine);
   }
 
@@ -64,7 +64,6 @@ export default function (pi: ExtensionAPI) {
       !isFishwordHidden &&
       !cardOverlayHandle &&
       !cardDetailHandle &&
-      !deckSelectorHandle &&
       !statsOverlayHandle
     ) {
       await refreshDisplay(ctx);
@@ -87,14 +86,14 @@ export default function (pi: ExtensionAPI) {
     cardDetailHandle = null;
   }
 
-  function hideDeckSelector(): void {
-    deckSelectorHandle?.hide();
-    deckSelectorHandle = null;
-  }
-
   function hideStatsOverlay(): void {
     statsOverlayHandle?.hide();
     statsOverlayHandle = null;
+  }
+
+  function hideDeckManager(): void {
+    deckManagerHandle?.hide();
+    deckManagerHandle = null;
   }
 
   function showCurrentCard(ctx: ExtensionContext, cardResponse: Record<string, unknown>): void {
@@ -217,7 +216,6 @@ export default function (pi: ExtensionAPI) {
     }
 
     hideCardOverlay();
-    hideDeckSelector();
     hideStatsOverlay();
     showStatsOverlay(ctx, {
       status: statusRes as StatusResponse,
@@ -240,49 +238,24 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  async function openDeckSelector(ctx: ExtensionContext): Promise<void> {
-    let res: Record<string, unknown>;
-    try {
-      res = await runFishword(["deck", "list", "--json"]);
-    } catch {
-      ctx.ui.notify("Failed to list decks", "error");
-      return;
-    }
-    if (res["schema"] !== "fishword.protocol.decks.v1") {
-      ctx.ui.notify("Failed to list decks", "error");
-      return;
-    }
-    const decks = res["decks"] as DeckItem[];
-    if (decks.length === 0) {
-      ctx.ui.notify("No decks found. Import a deck first.", "info");
-      return;
-    }
-
+  function openDeckManager(ctx: ExtensionContext): void {
     hideCardOverlay();
     hideStatsOverlay();
+    hideDeckManager();
 
-    showDeckSelectorOverlay(ctx, {
-      decks,
-      activeIndex: decks.findIndex((d) => d.active),
+    showDeckManagerOverlay(ctx, {
       visibilityShortcut: HIDE_OR_SUMMON_KEY,
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
-        deckSelectorHandle = handle;
+        deckManagerHandle = handle;
         handle.setHidden(isFishwordHidden);
       },
-      onCancel: () => {
-        hideDeckSelector();
+      onClose: () => {
+        deckManagerHandle = null;
         void refreshDisplay(ctx);
       },
-      onSelect: async (deck) => {
-        hideDeckSelector();
-        const res = await runFishword(["deck", "use", String(deck.id), "--json"]);
-        if (isErrorResponse(res)) {
-          ctx.ui.notify(`Failed: ${getErrorCode(res) ?? "unknown error"}`, "error");
-        } else {
-          await refreshDisplay(ctx);
-          ctx.ui.notify(`Switched to: ${deck.description ?? deck.name}`, "info");
-        }
+      onDeckChanged: () => {
+        void refreshStatusLine(ctx);
       },
     });
   }
@@ -348,9 +321,9 @@ export default function (pi: ExtensionAPI) {
 
   const fishwordActions: FishwordAction[] = [
     {
-      command: "fw-deck",
-      description: "Fishword: switch active deck — shows interactive selector",
-      handler: openDeckSelector,
+      command: "fw-manage",
+      description: "Fishword: manage decks — browse catalog or delete local decks",
+      handler: openDeckManager,
     },
     {
       command: "fw-stats",
