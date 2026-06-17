@@ -42,13 +42,6 @@ pub struct ImportCard {
     pub source: Option<Source>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ImportDeck {
-    pub deck_id: String,
-    pub deck_name: Option<String>,
-    pub cards: Vec<ImportCard>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportSummary {
     pub deck_id: i64,
@@ -93,16 +86,12 @@ struct DeckPronunciationV1 {
     uk: Option<String>,
 }
 
-pub fn import_jsonl_file(
-    path: &Path,
-    deck_id: &str,
-    deck_name: Option<&str>,
-) -> Result<ImportDeck> {
+pub fn import_jsonl_file(path: &Path) -> Result<Vec<ImportCard>> {
     let text = std::fs::read_to_string(path)?;
-    import_jsonl_str(&text, deck_id, deck_name)
+    import_jsonl_str(&text)
 }
 
-pub fn import_jsonl_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> Result<ImportDeck> {
+pub fn import_jsonl_str(text: &str) -> Result<Vec<ImportCard>> {
     let mut cards = Vec::new();
     for (index, line) in text.lines().enumerate() {
         if line.trim().is_empty() {
@@ -112,11 +101,7 @@ pub fn import_jsonl_str(text: &str, deck_id: &str, deck_name: Option<&str>) -> R
             .map_err(|error| Error::InvalidInput(format!("JSONL line {}: {error}", index + 1)))?;
         cards.push(deck_v1_to_import_card(card)?);
     }
-    Ok(ImportDeck {
-        deck_id: deck_id.to_string(),
-        deck_name: deck_name.map(str::to_string),
-        cards,
-    })
+    Ok(cards)
 }
 
 fn deck_v1_to_import_card(card: DeckCardV1) -> Result<ImportCard> {
@@ -187,53 +172,43 @@ mod tests {
 
     #[test]
     fn imports_jsonl() {
-        let jsonl = import_jsonl_str(&fixture("deck_v1_sample.jsonl"), "jsonl", None).unwrap();
-        assert_eq!(jsonl.cards[0].word, "cancel");
-        assert_eq!(jsonl.cards[0].pronunciations.len(), 2);
+        let cards = import_jsonl_str(&fixture("deck_v1_sample.jsonl")).unwrap();
+        assert_eq!(cards[0].word, "cancel");
+        assert_eq!(cards[0].pronunciations.len(), 2);
     }
 
     #[test]
     fn importer_preserves_only_explicit_tags() {
-        let jsonl = import_jsonl_str(
-            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#,
-            "jsonl",
-            None,
-        )
-        .unwrap();
-        assert!(jsonl.cards[0].tags.is_empty());
+        let cards =
+            import_jsonl_str(r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#)
+                .unwrap();
+        assert!(cards[0].tags.is_empty());
 
         let tagged = import_jsonl_str(
             r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}],"tags":["review","hard"]}"#,
-            "jsonl",
-            None,
         )
         .unwrap();
-        assert_eq!(tagged.cards[0].tags, vec!["review", "hard"]);
+        assert_eq!(tagged[0].tags, vec!["review", "hard"]);
     }
 
     #[test]
     fn duplicate_skip_and_merge_work_in_storage() {
         let storage = open_temp();
         let deck = storage.insert_deck("cet4", Some("CET-4")).unwrap();
-        let initial = import_jsonl_str(
-            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#,
-            "cet4",
-            None,
-        )
-        .unwrap();
+        let initial =
+            import_jsonl_str(r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#)
+                .unwrap();
         let summary = storage
-            .import_cards(deck.id, &initial.cards, DuplicateStrategy::Merge)
+            .import_cards(deck.id, &initial, DuplicateStrategy::Merge)
             .unwrap();
         assert_eq!(summary.inserted, 1);
 
         let duplicate = import_jsonl_str(
             r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"撤销"}],"tags":["review"]}"#,
-            "cet4",
-            None,
         )
         .unwrap();
         let skipped = storage
-            .import_cards(deck.id, &duplicate.cards, DuplicateStrategy::Skip)
+            .import_cards(deck.id, &duplicate, DuplicateStrategy::Skip)
             .unwrap();
         assert_eq!(skipped.skipped, 1);
         assert_eq!(
@@ -245,7 +220,7 @@ mod tests {
         );
 
         let merged = storage
-            .import_cards(deck.id, &duplicate.cards, DuplicateStrategy::Merge)
+            .import_cards(deck.id, &duplicate, DuplicateStrategy::Merge)
             .unwrap();
         assert_eq!(merged.merged, 1);
         let cards = storage
@@ -260,24 +235,18 @@ mod tests {
     fn duplicate_overwrite_and_keep_work_in_storage() {
         let storage = open_temp();
         let deck = storage.insert_deck("cet4", Some("CET-4")).unwrap();
-        let initial = import_jsonl_str(
-            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#,
-            "cet4",
-            None,
-        )
-        .unwrap();
+        let initial =
+            import_jsonl_str(r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#)
+                .unwrap();
         storage
-            .import_cards(deck.id, &initial.cards, DuplicateStrategy::Merge)
+            .import_cards(deck.id, &initial, DuplicateStrategy::Merge)
             .unwrap();
 
-        let replacement = import_jsonl_str(
-            r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"撤销"}]}"#,
-            "cet4",
-            None,
-        )
-        .unwrap();
+        let replacement =
+            import_jsonl_str(r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"撤销"}]}"#)
+                .unwrap();
         let overwritten = storage
-            .import_cards(deck.id, &replacement.cards, DuplicateStrategy::Overwrite)
+            .import_cards(deck.id, &replacement, DuplicateStrategy::Overwrite)
             .unwrap();
         assert_eq!(overwritten.updated, 1);
         assert_eq!(
@@ -290,7 +259,7 @@ mod tests {
         );
 
         let kept = storage
-            .import_cards(deck.id, &replacement.cards, DuplicateStrategy::Keep)
+            .import_cards(deck.id, &replacement, DuplicateStrategy::Keep)
             .unwrap();
         assert_eq!(kept.inserted, 1);
         assert_eq!(
@@ -305,9 +274,9 @@ mod tests {
     #[test]
     fn jsonl_example_field_is_parsed() {
         let jsonl = r#"{"term":"absorb","meanings":[{"lang":"v","text":"吸收","example":"Plants absorb nutrients from the soil."}]}"#;
-        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
-        assert_eq!(deck.cards.len(), 1);
-        let meaning = &deck.cards[0].meanings[0];
+        let cards = import_jsonl_str(jsonl).unwrap();
+        assert_eq!(cards.len(), 1);
+        let meaning = &cards[0].meanings[0];
         assert_eq!(meaning.definition, "吸收");
         assert_eq!(
             meaning.example.as_deref(),
@@ -318,15 +287,15 @@ mod tests {
     #[test]
     fn jsonl_missing_example_is_none() {
         let jsonl = r#"{"term":"cancel","meanings":[{"lang":"zh-CN","text":"取消"}]}"#;
-        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
-        assert!(deck.cards[0].meanings[0].example.is_none());
+        let cards = import_jsonl_str(jsonl).unwrap();
+        assert!(cards[0].meanings[0].example.is_none());
     }
 
     #[test]
     fn jsonl_multiple_meanings_example_per_meaning() {
         let jsonl = r#"{"term":"access","meanings":[{"lang":"n","text":"入口","example":"The only access is across the bridge."},{"lang":"vt","text":"访问"}]}"#;
-        let deck = import_jsonl_str(jsonl, "test", None).unwrap();
-        let meanings = &deck.cards[0].meanings;
+        let cards = import_jsonl_str(jsonl).unwrap();
+        let meanings = &cards[0].meanings;
         assert_eq!(
             meanings[0].example.as_deref(),
             Some("The only access is across the bridge.")
@@ -339,9 +308,9 @@ mod tests {
         let storage = open_temp();
         let db_deck = storage.insert_deck("test", None).unwrap();
         let jsonl = r#"{"term":"absorb","meanings":[{"lang":"v","text":"吸收","example":"Plants absorb nutrients from the soil."}]}"#;
-        let parsed = import_jsonl_str(jsonl, "test", None).unwrap();
+        let parsed = import_jsonl_str(jsonl).unwrap();
         storage
-            .import_cards(db_deck.id, &parsed.cards, DuplicateStrategy::Merge)
+            .import_cards(db_deck.id, &parsed, DuplicateStrategy::Merge)
             .unwrap();
 
         let cards = storage

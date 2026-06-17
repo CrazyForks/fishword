@@ -15,9 +15,9 @@ use crate::{
 
 pub fn cmd_import(command: ImportCmd) -> Result<()> {
     let ImportCmd::Jsonl(args) = command;
-    let deck = import_jsonl_file(&args.path, "", None)
+    let cards = import_jsonl_file(&args.path)
         .with_context(|| format!("failed to parse {}", args.path.display()))?;
-    persist_import(args, deck.cards)
+    persist_import(args, cards)
 }
 
 fn persist_import(args: ImportArgs, cards: Vec<fishword_core::importer::ImportCard>) -> Result<()> {

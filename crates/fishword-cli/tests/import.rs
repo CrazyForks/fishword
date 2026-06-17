@@ -72,9 +72,12 @@ fn import_with_name_creates_deck_and_imports_cards() {
         ],
     ));
     let decks = assert_success(fishword(&home, &["deck", "list"]));
+    let cards = assert_success(fishword(&home, &["card", "list", "--deck", "1"]));
 
     assert!(output.contains("Imported deck=Imported input=1 inserted=1"));
     assert!(decks.contains("Imported"));
+    assert!(cards.contains("cancel"));
+    assert!(cards.contains("取消"));
 }
 
 #[test]
@@ -88,8 +91,11 @@ fn import_with_deck_still_imports_into_existing_deck() {
         &home,
         &["import", "jsonl", jsonl.to_str().unwrap(), "--deck", "1"],
     ));
+    let cards = assert_success(fishword(&home, &["card", "list", "--deck", "1"]));
 
     assert!(output.contains("Imported deck=Existing input=1 inserted=1"));
+    assert!(cards.contains("cancel"));
+    assert!(cards.contains("取消"));
 }
 
 #[test]

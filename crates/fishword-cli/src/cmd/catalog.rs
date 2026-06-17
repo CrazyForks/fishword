@@ -134,7 +134,7 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
     let jsonl_body = fetch_url(&entry.url, json)
         .with_context(|| format!("failed to download deck '{deck_id}' from {}", entry.url))?;
 
-    let import_deck = import_jsonl_str(&jsonl_body, deck_id, Some(&entry.name))
+    let cards = import_jsonl_str(&jsonl_body)
         .with_context(|| format!("failed to parse JSONL for deck '{deck_id}'"))?;
 
     let storage = open_storage()?;
@@ -148,14 +148,14 @@ fn catalog_fetch(deck_id: &str, duplicates: &str, json: bool) -> Result<()> {
         .context("failed to look up existing catalog deck")?
     {
         let s = storage
-            .import_cards(existing.id, &import_deck.cards, duplicate_strategy)
+            .import_cards(existing.id, &cards, duplicate_strategy)
             .context("failed to import cards")?;
         (existing, s)
     } else {
         match storage.import_cards_into_new_deck_with_catalog_id(
             &entry.name,
             None,
-            &import_deck.cards,
+            &cards,
             duplicate_strategy,
             Some(deck_id),
         ) {
