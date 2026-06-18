@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build": "pnpm run build:rust && pnpm run build:pi",
-    "test": "pnpm run test:rust && pnpm run smoke:rust",
+    "test": "pnpm run test:rust && pnpm run smoke:rust && pnpm run test:pi",
     "lint": "pnpm run lint:rust",
     "smoke": "pnpm run smoke:rust",
     "format": "pnpm run format:rust",
@@ -21,7 +21,7 @@
     "dev:pi": "pnpm run build:pi && pi --extension ./packages/pi-extension/dist/index.js",
     "build:pi": "pnpm --filter @fishword/pi-extension run build",
     "test:pi": "pnpm --filter @fishword/pi-extension run test",
-    "check:pi": "pnpm --filter @fishword/pi-extension run check && pnpm run test:pi"
+    "check:pi": "pnpm --filter @fishword/pi-extension run check"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
