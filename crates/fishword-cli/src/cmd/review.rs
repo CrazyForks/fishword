@@ -18,7 +18,7 @@ fn resolve_deck(
         Some(id) => storage
             .get_deck_by_id(id)
             .with_context(|| format!("failed to read deck {id}"))?
-            .ok_or_else(|| anyhow::anyhow!("Deck not found: {id}"))
+            .ok_or_else(|| cmd_error(json, "deck_not_found", &format!("Deck not found: {id}")))
             .map(Some),
         None => storage
             .get_active_deck()
@@ -148,16 +148,16 @@ pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
 }
 
 pub fn cmd_rate(args: &RateArgs) -> Result<()> {
-    let rating = args
-        .rating
-        .parse::<Rating>()
-        .map_err(anyhow::Error::msg)
-        .with_context(|| {
-            format!(
+    let rating = args.rating.parse::<Rating>().map_err(|_| {
+        cmd_error(
+            args.json,
+            "invalid_rating",
+            &format!(
                 "invalid rating '{}', expected again/hard/good/easy",
                 args.rating
-            )
-        })?;
+            ),
+        )
+    })?;
     let storage = open_storage()?;
     let Some(scope_deck) = resolve_deck(&storage, args.deck, args.json)? else {
         return Err(cmd_error(

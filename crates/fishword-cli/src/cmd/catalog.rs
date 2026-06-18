@@ -117,8 +117,13 @@ fn catalog_list(json: bool) -> Result<()> {
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
 fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
-    let duplicate_strategy = DuplicateStrategy::from_str(duplicates)
-        .with_context(|| format!("invalid --duplicates value '{duplicates}'"))?;
+    let duplicate_strategy = DuplicateStrategy::from_str(duplicates).map_err(|_| {
+        cmd_error(
+            json,
+            "invalid_duplicate_strategy",
+            &format!("invalid --duplicates value '{duplicates}'"),
+        )
+    })?;
 
     let catalog = fetch_catalog(json)?;
     let entry = match catalog.decks.into_iter().find(|e| e.id == catalog_id) {
@@ -236,12 +241,10 @@ fn fetch_url(url: &str, json_errors: bool) -> Result<String> {
             .into_body()
             .read_to_string()
             .context("failed to read response body"),
-        Err(e) => {
-            Err(cmd_error(
-                json_errors,
-                "network_error",
-                &format!("Network request failed: {e}"),
-            ))
-        }
+        Err(e) => Err(cmd_error(
+            json_errors,
+            "network_error",
+            &format!("Network request failed: {e}"),
+        )),
     }
 }

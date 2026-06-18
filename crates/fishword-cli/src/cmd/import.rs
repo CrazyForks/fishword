@@ -11,7 +11,7 @@ use crate::protocol::{ImportResponse, IMPORT_SCHEMA};
 
 use crate::{
     args::{ImportArgs, ImportCmd},
-    util::{open_storage, print_json},
+    util::{cmd_error, open_storage, print_json},
 };
 
 enum ImportTarget {
@@ -43,8 +43,13 @@ fn persist_import(
     duplicates: &str,
     json: bool,
 ) -> Result<()> {
-    let duplicate_strategy = DuplicateStrategy::from_str(duplicates)
-        .with_context(|| format!("invalid --duplicates value '{duplicates}'"))?;
+    let duplicate_strategy = DuplicateStrategy::from_str(duplicates).map_err(|_| {
+        cmd_error(
+            json,
+            "invalid_duplicate_strategy",
+            &format!("invalid --duplicates value '{duplicates}'"),
+        )
+    })?;
     let storage = open_storage()?;
     let (db_deck, summary) = match target {
         ImportTarget::ExistingDeck(deck_id) => {
@@ -52,9 +57,13 @@ fn persist_import(
                 .get_deck_by_id(deck_id)
                 .with_context(|| format!("failed to read deck {}", deck_id))?
                 .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "deck not found: {}. Run `fishword deck create <name>` first.",
-                        deck_id
+                    cmd_error(
+                        json,
+                        "deck_not_found",
+                        &format!(
+                            "deck not found: {}. Run `fishword deck create <name>` first.",
+                            deck_id
+                        ),
                     )
                 })?;
             let summary = storage
@@ -63,7 +72,7 @@ fn persist_import(
             (db_deck, summary)
         }
         ImportTarget::CreateDeck(name) => {
-            import_into_new_deck(&storage, &name, &cards, duplicate_strategy)?
+            import_into_new_deck(&storage, &name, &cards, duplicate_strategy, json)?
         }
     };
     if storage
@@ -104,12 +113,17 @@ fn import_into_new_deck(
     name: &str,
     cards: &[fishword_core::importer::ImportCard],
     duplicate_strategy: DuplicateStrategy,
+    json: bool,
 ) -> Result<(Deck, fishword_core::importer::ImportSummary)> {
     match storage.import_cards_into_new_deck(name, None, cards, duplicate_strategy) {
         Ok(result) => Ok(result),
-        Err(CoreError::AlreadyExists(_)) => anyhow::bail!(
-            "Deck already exists: {name}. Use `fishword deck list` to find its id, then import with `--deck-id <id>`."
-        ),
+        Err(CoreError::AlreadyExists(_)) => Err(cmd_error(
+            json,
+            "deck_already_exists",
+            &format!(
+                "Deck already exists: {name}. Use `fishword deck list` to find its id, then import with `--deck-id <id>`."
+            ),
+        )),
         Err(e) => Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
     }
 }

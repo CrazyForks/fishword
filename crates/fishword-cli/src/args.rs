@@ -215,3 +215,56 @@ pub enum CatalogCmd {
         json: bool,
     },
 }
+
+impl Cmd {
+    pub fn wants_json(&self) -> bool {
+        match self {
+            Self::Init => false,
+            Self::Deck { sub } => sub.wants_json(),
+            Self::Card { sub } => sub.wants_json(),
+            Self::Import { sub } => sub.wants_json(),
+            Self::Current(args) => args.json,
+            Self::Status(args) => args.json,
+            Self::Stats(args) => args.json,
+            Self::Rate(args) => args.json,
+            Self::Catalog { sub } => sub.wants_json(),
+        }
+    }
+}
+
+impl DeckCmd {
+    fn wants_json(&self) -> bool {
+        match self {
+            Self::List { json }
+            | Self::Create { json, .. }
+            | Self::Use { json, .. }
+            | Self::Delete { json, .. }
+            | Self::Rename { json, .. } => *json,
+            Self::Current => false,
+        }
+    }
+}
+
+impl CardCmd {
+    fn wants_json(&self) -> bool {
+        match self {
+            Self::List(args) => args.json,
+        }
+    }
+}
+
+impl ImportCmd {
+    fn wants_json(&self) -> bool {
+        match self {
+            Self::Jsonl(args) => args.json,
+        }
+    }
+}
+
+impl CatalogCmd {
+    fn wants_json(&self) -> bool {
+        match self {
+            Self::List { json } | Self::Fetch { json, .. } => *json,
+        }
+    }
+}

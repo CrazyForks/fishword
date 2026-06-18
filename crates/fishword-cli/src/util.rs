@@ -51,22 +51,48 @@ pub fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {
     Ok(())
 }
 
-/// Returns an `anyhow::Error` for the given error code and message.
-/// In JSON mode, prints the error as a JSON response and exits the process immediately.
-/// In text mode, returns a plain `anyhow` error for the caller to propagate.
-pub fn cmd_error(json: bool, code: &str, message: &str) -> anyhow::Error {
-    if json {
-        exit_json_error(code, message)
-    } else {
-        anyhow::anyhow!("{}", message)
+#[derive(Debug)]
+pub struct ProtocolError {
+    pub code: String,
+    pub message: String,
+}
+
+impl ProtocolError {
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+        }
     }
 }
 
-pub fn exit_json_error(code: &str, message: &str) -> ! {
-    println!(
-        "{}",
-        serde_json::to_string(&ErrorResponse::new(code, message))
-            .expect("serializing protocol error should not fail")
-    );
-    std::process::exit(2);
+impl std::fmt::Display for ProtocolError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for ProtocolError {}
+
+/// Returns an error with a stable protocol code. The top-level CLI entry point
+/// decides whether to render it as JSON or as human-readable text.
+pub fn cmd_error(_json: bool, code: &str, message: &str) -> anyhow::Error {
+    anyhow::Error::new(ProtocolError::new(code, message))
+}
+
+pub fn render_cli_error(json: bool, err: anyhow::Error) -> ! {
+    if json {
+        let response = err
+            .chain()
+            .find_map(|cause| cause.downcast_ref::<ProtocolError>())
+            .map(|err| ErrorResponse::new(&err.code, &err.message))
+            .unwrap_or_else(|| ErrorResponse::new("internal_error", err.to_string()));
+        println!(
+            "{}",
+            serde_json::to_string(&response).expect("serializing protocol error should not fail")
+        );
+    } else {
+        eprintln!("Error: {err:?}");
+    }
+    std::process::exit(1);
 }
