@@ -9,31 +9,34 @@ use fishword_core::{
 
 use crate::{
     args::{CardOutputArgs, RateArgs, StatsArgs, StatusArgs},
-    util::{cmd_error, open_storage, print_json, print_selected_card, resolve_deck_scope},
+    util::{cmd_error, open_storage, print_json, print_selected_card},
 };
+
+fn resolve_deck(storage: &fishword_core::storage::Storage, deck_id: Option<i64>, json: bool) -> Result<Option<fishword_core::deck::Deck>> {
+    match deck_id {
+        Some(id) => storage
+            .get_deck_by_id(id)
+            .with_context(|| format!("failed to read deck {id}"))?
+            .ok_or_else(|| anyhow::anyhow!("Deck not found: {id}"))
+            .map(Some),
+        None => storage.get_active_deck().context("failed to read active deck").map_err(|e| cmd_error(json, "storage_error", &e.to_string())),
+    }
+}
 
 pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
+    let Some(deck) = resolve_deck(&storage, args.deck, args.json)? else {
         if args.json {
-            return Err(cmd_error(
-                true,
-                "no_cards",
-                "No cards found. Import a deck first.",
-            ));
+            return Err(cmd_error(true, "no_active_deck", "No active deck. Run `fishword deck use <deck>` first."));
         }
-        println!("No cards found. Import a deck first.");
+        println!("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     match selector::select_current(&storage, deck.id).context("failed to select current card")? {
         Some(selected) => print_selected_card(&storage, &selected, args, true)?,
         None => {
             if args.json {
-                return Err(cmd_error(
-                    true,
-                    "no_cards",
-                    "No cards found. Import a deck first.",
-                ));
+                return Err(cmd_error(true, "no_cards", "No cards found. Import a deck first."));
             }
             println!("No cards found. Import a deck first.");
         }
@@ -43,15 +46,11 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
 
 pub fn cmd_status(args: &StatusArgs) -> Result<()> {
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
+    let Some(deck) = resolve_deck(&storage, args.deck, args.json)? else {
         if args.json {
-            return Err(cmd_error(
-                true,
-                "no_cards",
-                "No cards found. Import a deck first.",
-            ));
+            return Err(cmd_error(true, "no_active_deck", "No active deck. Run `fishword deck use <deck>` first."));
         }
-        println!("No cards found. Import a deck first.");
+        println!("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     let progress = storage
@@ -86,15 +85,11 @@ pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
         ));
     }
     let storage = open_storage()?;
-    let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
+    let Some(deck) = resolve_deck(&storage, args.deck, args.json)? else {
         if args.json {
-            return Err(cmd_error(
-                true,
-                "no_cards",
-                "No cards found. Import a deck first.",
-            ));
+            return Err(cmd_error(true, "no_active_deck", "No active deck. Run `fishword deck use <deck>` first."));
         }
-        println!("No cards found. Import a deck first.");
+        println!("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     let today = Utc::now().date_naive();
@@ -144,11 +139,11 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
             )
         })?;
     let storage = open_storage()?;
-    let Some(scope_deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
+    let Some(scope_deck) = resolve_deck(&storage, args.deck, args.json)? else {
         return Err(cmd_error(
             args.json,
-            "no_cards",
-            "No cards found. Import a deck first.",
+            "no_active_deck",
+            "No active deck. Run `fishword deck use <deck>` first.",
         ));
     };
     let Some(card_id) = storage

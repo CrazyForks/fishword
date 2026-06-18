@@ -10,7 +10,7 @@ use fishword_core::{
 
 use crate::{
     args::{CardListArgs, DeckCmd},
-    util::{cmd_error, open_storage, print_json, resolve_deck_scope},
+    util::{cmd_error, open_storage, print_json},
 };
 
 pub fn cmd_init() -> Result<()> {
@@ -175,7 +175,7 @@ fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
 
 fn cmd_deck_current() -> Result<()> {
     let storage = open_storage()?;
-    match resolve_deck_scope(&storage, None, false)? {
+    match storage.get_active_deck().context("failed to read active deck")? {
         Some(deck) => println!(
             "Active deck: {} ({}) {}",
             deck.name,

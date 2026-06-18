@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use fishword_core::{
-    deck::Deck,
     protocol::{render_card, CardResponse, ErrorResponse, TextFormat},
     selector::SelectedCard,
     storage::Storage,
@@ -13,63 +12,6 @@ pub fn open_storage() -> Result<Storage> {
     Storage::open(&path).with_context(|| format!("cannot open database at {}", path.display()))
 }
 
-/// Resolves which deck a command should operate on, using this priority:
-/// 1. Explicit `--deck <id>` argument
-/// 2. The currently active deck (stored in settings)
-/// 3. Auto-select: if exactly one deck exists, activates it as a side effect
-///    and returns it (convenience for single-deck users who skipped `deck use`)
-/// 4. Returns `None` if no decks exist, or an error if multiple decks exist
-///    and none is active.
-///
-/// **Note:** when case 3 applies this function writes to the database
-/// (`set_active_deck_id`), which also clears `current_card_id`. Callers that
-/// expect a pure read should ensure an active deck is set before calling.
-pub fn resolve_deck_scope(
-    storage: &Storage,
-    deck_id: Option<i64>,
-    json_errors: bool,
-) -> Result<Option<Deck>> {
-    if let Some(deck_id) = deck_id {
-        return match storage
-            .get_deck_by_id(deck_id)    
-            .with_context(|| format!("failed to read deck {deck_id}"))?
-        {
-            Some(deck) => Ok(Some(deck)),
-            None => {
-                return Err(cmd_error(
-                    json_errors,
-                    "deck_not_found",
-                    &format!("Deck not found: {deck_id}"),
-                ))
-            }
-        };
-    }
-
-    if let Some(deck) = storage
-        .get_active_deck()
-        .context("failed to read active deck")?
-    {
-        return Ok(Some(deck));
-    }
-
-    let decks = storage.list_decks().context("failed to list decks")?;
-    match decks.as_slice() {
-        [] => Ok(None),
-        [deck] => {
-            storage
-                .set_active_deck_id(Some(deck.id))
-                .context("failed to set active deck")?;
-            Ok(Some(deck.clone()))
-        }
-        _ => {
-            return Err(cmd_error(
-                json_errors,
-                "no_active_deck",
-                "Multiple decks found. Run `fishword deck use <deck>` or pass `--deck <deck>`.",
-            ))
-        }
-    }
-}
 
 pub fn print_selected_card(
     storage: &Storage,
