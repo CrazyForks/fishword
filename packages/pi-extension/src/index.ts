@@ -22,6 +22,14 @@ type FishwordAction = {
   handler: (ctx: ExtensionContext) => Promise<void> | void;
 };
 
+type OverlayState =
+  | { kind: "none" }
+  | { kind: "card"; handle: OverlayHandle; response: CardResponse }
+  | { kind: "done"; handle: OverlayHandle; timer: ReturnType<typeof setInterval> }
+  | { kind: "card-detail"; handle: OverlayHandle; response: CardResponse | null }
+  | { kind: "stats"; handle: OverlayHandle }
+  | { kind: "deck-manager"; handle: OverlayHandle };
+
 function formatShortcutLabel(key: string): string {
   return key
     .split("+")
@@ -35,15 +43,9 @@ function commandDescription(description: string, shortcut?: string): string {
 
 export default function (pi: ExtensionAPI) {
   const overlayManager = new OverlayManager();
-  let cardOverlayHandle: OverlayHandle | null = null;
-  let cardDetailHandle: OverlayHandle | null = null;
-  let statsOverlayHandle: OverlayHandle | null = null;
-  let deckManagerHandle: OverlayHandle | null = null;
-  let doneCheckTimer: ReturnType<typeof setInterval> | null = null;
-  let isDone = false;
+  let overlay: OverlayState = { kind: "none" };
   let isFishwordHidden = false;
   let lastStatusLine: string | undefined;
-  let currentCardResponse: CardResponse | null = null;
 
   function setFishwordStatus(ctx: ExtensionContext, text: string | undefined): void {
     lastStatusLine = text;
@@ -64,62 +66,30 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  function hideCardOverlay(): void {
-    if (cardOverlayHandle) {
-      overlayManager.unregister(cardOverlayHandle);
-      cardOverlayHandle.hide();
-      cardOverlayHandle = null;
-    }
-    isDone = false;
-    currentCardResponse = null;
-    if (doneCheckTimer) {
-      clearInterval(doneCheckTimer);
-      doneCheckTimer = null;
-    }
-  }
-
-  function hideCardDetail(): void {
-    if (cardDetailHandle) {
-      overlayManager.unregister(cardDetailHandle);
-      cardDetailHandle.hide();
-      cardDetailHandle = null;
-    }
-  }
-
-  function hideStatsOverlay(): void {
-    if (statsOverlayHandle) {
-      overlayManager.unregister(statsOverlayHandle);
-      statsOverlayHandle.hide();
-      statsOverlayHandle = null;
-    }
-  }
-
-  function hideDeckManager(): void {
-    if (deckManagerHandle) {
-      overlayManager.unregister(deckManagerHandle);
-      deckManagerHandle.hide();
-      deckManagerHandle = null;
-    }
+  /**
+   * Close the current overlay. Pass hide=false when the UI framework has already
+   * dismissed the overlay (e.g. from an onClose callback) to avoid a redundant hide call.
+   */
+  function teardown(hide: boolean = true): void {
+    if (overlay.kind === "none") return;
+    overlayManager.unregister(overlay.handle);
+    if (hide) overlay.handle.hide();
+    if (overlay.kind === "done") clearInterval(overlay.timer);
+    overlay = { kind: "none" };
   }
 
   function showCurrentCard(ctx: ExtensionContext, cardResponse: Record<string, unknown>): void {
-    hideCardOverlay();
+    teardown();
     const parsed = parseCardResponse(cardResponse);
-    currentCardResponse = parsed;
     showCardOverlay(ctx, parsed, (handle) => {
-      cardOverlayHandle = handle;
+      overlay = { kind: "card", handle, response: parsed };
       overlayManager.register(handle, isFishwordHidden);
     });
   }
 
   function showDone(ctx: ExtensionContext): void {
-    hideCardOverlay();
-    isDone = true;
-    showDoneOverlay(ctx, (handle) => {
-      cardOverlayHandle = handle;
-      overlayManager.register(handle, isFishwordHidden);
-    });
-    doneCheckTimer = setInterval(() => {
+    teardown();
+    const timer = setInterval(() => {
       void (async () => {
         const status = await refreshStatusLine(ctx);
         if (status && status.mode !== "complete") {
@@ -127,6 +97,10 @@ export default function (pi: ExtensionAPI) {
         }
       })();
     }, 60_000);
+    showDoneOverlay(ctx, (handle) => {
+      overlay = { kind: "done", handle, timer };
+      overlayManager.register(handle, isFishwordHidden);
+    });
   }
 
   async function refreshStatusLine(ctx: ExtensionContext): Promise<StatusResponse | null> {
@@ -164,22 +138,22 @@ export default function (pi: ExtensionAPI) {
     try {
       const res = await runFishword(["current", "--json"]);
       if (isErrorResponse(res)) {
-        hideCardOverlay();
+        teardown();
       } else {
         showCurrentCard(ctx, res);
       }
     } catch {
-      hideCardOverlay();
+      teardown();
     }
   }
 
   async function rateAndAdvance(ctx: ExtensionContext, rating: Rating): Promise<void> {
     if (isFishwordHidden) return;
-    if (isDone) return;
+    if (overlay.kind === "done") return;
     try {
       const res = await runFishword(["rate", rating, "--json"]);
       if (isErrorResponse(res)) {
-        hideCardOverlay();
+        teardown();
         await refreshStatusLine(ctx);
       } else {
         const latestStatus = await refreshStatusLine(ctx);
@@ -189,11 +163,11 @@ export default function (pi: ExtensionAPI) {
         } else if (latestStatus?.mode === "complete") {
           showDone(ctx);
         } else {
-          hideCardOverlay();
+          teardown();
         }
       }
     } catch {
-      hideCardOverlay();
+      teardown();
       setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
     }
   }
@@ -221,20 +195,19 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    hideCardOverlay();
-    hideStatsOverlay();
+    teardown();
     showStatsOverlay(ctx, {
       status: statusRes as StatusResponse,
       stats: statsRes as StatsResponse,
       visibilityShortcut: HIDE_OR_SUMMON_KEY,
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
-        statsOverlayHandle = handle;
+        overlay = { kind: "stats", handle };
         overlayManager.register(handle, isFishwordHidden);
       },
       onDone: () => {
-        if (statsOverlayHandle) overlayManager.unregister(statsOverlayHandle);
-        statsOverlayHandle = null;
+        // Stats overlay Promise resolved; UI already dismissed — only unregister.
+        teardown(false);
       },
       onRefresh: () => {
         void openStatsOverlay(ctx);
@@ -246,20 +219,17 @@ export default function (pi: ExtensionAPI) {
   }
 
   function openDeckManager(ctx: ExtensionContext): void {
-    hideCardOverlay();
-    hideStatsOverlay();
-    hideDeckManager();
+    teardown();
 
     showDeckManagerOverlay(ctx, {
       visibilityShortcut: HIDE_OR_SUMMON_KEY,
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
-        deckManagerHandle = handle;
+        overlay = { kind: "deck-manager", handle };
         overlayManager.register(handle, isFishwordHidden);
       },
       onClose: () => {
-        if (deckManagerHandle) overlayManager.unregister(deckManagerHandle);
-        deckManagerHandle = null;
+        teardown(false);
         void refreshDisplay(ctx);
       },
       onDeckChanged: () => {
@@ -268,26 +238,30 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  function openCardDetail(ctx: ExtensionContext): void {
-    // Hide card / done overlay before showing detail
-    hideCardOverlay();
-    hideCardDetail();
+  function openCardDetail(ctx: ExtensionContext, responseOverride?: CardResponse | null): void {
+    const response =
+      responseOverride !== undefined
+        ? responseOverride
+        : overlay.kind === "card"
+          ? overlay.response
+          : null;
+
+    teardown();
 
     showCardDetailOverlay(ctx, {
-      response: currentCardResponse,
+      response,
       visibilityShortcut: HIDE_OR_SUMMON_KEY,
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
-        cardDetailHandle = handle;
+        overlay = { kind: "card-detail", handle, response };
         overlayManager.register(handle, isFishwordHidden);
       },
       onClose: () => {
-        if (cardDetailHandle) overlayManager.unregister(cardDetailHandle);
-        cardDetailHandle = null;
-        // Restore card overlay when user dismisses detail
-        if (currentCardResponse) {
-          showCardOverlay(ctx, currentCardResponse, (handle) => {
-            cardOverlayHandle = handle;
+        // UI dismissed — only unregister, then restore card overlay if we have a response.
+        teardown(false);
+        if (response) {
+          showCardOverlay(ctx, response, (handle) => {
+            overlay = { kind: "card", handle, response: response };
             overlayManager.register(handle, isFishwordHidden);
           });
         }
@@ -300,24 +274,21 @@ export default function (pi: ExtensionAPI) {
 
   async function rateInDetail(ctx: ExtensionContext, rating: Rating): Promise<void> {
     if (isFishwordHidden) return;
-    if (!currentCardResponse) return;
-    cardDetailHandle = null;
+    if (overlay.kind !== "card-detail") return;
+    // onRate fires after the detail overlay's Promise resolves (UI already dismissed).
+    // teardown(false) unregisters the handle without calling hide() again.
+    teardown(false);
     try {
       const res = await runFishword(["rate", rating, "--json"]);
       if (isErrorResponse(res)) {
         await refreshStatusLine(ctx);
-        currentCardResponse = null;
-        openCardDetail(ctx);
+        openCardDetail(ctx, null);
         return;
       }
       await refreshStatusLine(ctx);
       const next = res["next"] as Record<string, unknown> | null;
-      if (next) {
-        currentCardResponse = parseCardResponse(next);
-      } else {
-        currentCardResponse = null;
-      }
-      openCardDetail(ctx);
+      const nextResponse = next ? parseCardResponse(next) : null;
+      openCardDetail(ctx, nextResponse);
     } catch {
       setFishwordStatus(ctx, formatStatusLineMessage("unavailable"));
     }
