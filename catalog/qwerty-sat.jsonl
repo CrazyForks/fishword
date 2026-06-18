@@ -2612,7 +2612,6 @@
 {"term":"latest","language":"en","meanings":[{"lang":"zh-CN","text":"最近的"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"'letɪst","uk":"'leitist"}}
 {"term":"validate","language":"en","meanings":[{"lang":"zh-CN","text":"使有效， 使有法律效力； 批准； 确认"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"'vælɪdet","uk":"'vælideit"}}
 {"term":"guileless","language":"en","meanings":[{"lang":"zh-CN","text":"坦率的"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"uk":"'gaillis"}}
-{"term":"dexterity","language":"en","meanings":[{"lang":"zh-CN","text":"灵巧， 机敏"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"dɛk'stɛrəti","uk":"deks'teriti"}}
 {"term":"inhibit","language":"en","meanings":[{"lang":"zh-CN","text":"阻止， 妨碍， 抑制"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"ɪn'hɪbɪt","uk":"in'hibit"}}
 {"term":"disclose","language":"en","meanings":[{"lang":"zh-CN","text":"泄露； 揭发； 解开"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"dɪs'kloz","uk":"dis'kləuz"}}
 {"term":"unspeakable","language":"en","meanings":[{"lang":"zh-CN","text":"无法形容的， 不能以言语表达的"}],"tags":["sat","exam","zh"],"source":{"name":"qwerty-learner","license":"GPL-3.0"},"pronunciation":{"us":"ʌn'spikəbl","uk":"ʌn'spiːkəbl"}}

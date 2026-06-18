@@ -1,6 +1,6 @@
 {
   "schema": "fishword.catalog.v2",
-  "updated_at": "2026-06-17T09:01:09.071Z",
+  "updated_at": "2026-06-18T07:23:31.346Z",
   "decks": [
     {
       "id": "qwerty:ielts",
@@ -29,7 +29,7 @@
       "name": "GRE",
       "description": "GRE 核心词汇，来自 Qwerty Learner",
       "language": "en",
-      "word_count": 6515,
+      "word_count": 6514,
       "tags": [
         "gre",
         "exam",
@@ -40,7 +40,7 @@
         "license": "GPL-3.0"
       },
       "url": "https://chenggou1.github.io/fishword/catalog/qwerty-gre.jsonl",
-      "size_bytes": 1558213
+      "size_bytes": 1558008
     },
     {
       "id": "qwerty:sat",
@@ -49,7 +49,7 @@
       "name": "SAT",
       "description": "SAT 核心词汇，来自 Qwerty Learner",
       "language": "en",
-      "word_count": 4464,
+      "word_count": 4463,
       "tags": [
         "sat",
         "exam",
@@ -60,7 +60,7 @@
         "license": "GPL-3.0"
       },
       "url": "https://chenggou1.github.io/fishword/catalog/qwerty-sat.jsonl",
-      "size_bytes": 1069672
+      "size_bytes": 1069438
     },
     {
       "id": "qwerty:oxford3000",
@@ -69,7 +69,7 @@
       "name": "Oxford 3000",
       "description": "牛津 3000 核心词汇，来自 Qwerty Learner",
       "language": "en",
-      "word_count": 1342,
+      "word_count": 1339,
       "tags": [
         "oxford",
         "reference"
@@ -79,7 +79,7 @@
         "license": "GPL-3.0"
       },
       "url": "https://chenggou1.github.io/fishword/catalog/qwerty-oxford3000.jsonl",
-      "size_bytes": 378029
+      "size_bytes": 377221
     },
     {
       "id": "qwerty:oxford5000",
@@ -88,7 +88,7 @@
       "name": "Oxford 5000",
       "description": "牛津 5000 核心词汇，来自 Qwerty Learner",
       "language": "en",
-      "word_count": 5836,
+      "word_count": 5499,
       "tags": [
         "oxford",
         "reference"
@@ -98,7 +98,7 @@
         "license": "GPL-3.0"
       },
       "url": "https://chenggou1.github.io/fishword/catalog/qwerty-oxford5000.jsonl",
-      "size_bytes": 4363056
+      "size_bytes": 4239028
     },
     {
       "id": "kajweb:cet4",
