@@ -1,8 +1,23 @@
+# Rust
 /target
+
+# Node.js / pnpm
 node_modules
 /.pnpm-store
+
+# Build outputs
 dist
-/internal
 packages/pi-extension/dist/
+
+# Pi extension generated assets (copied from assets/dicts/kajweb/ at build time)
 packages/pi-extension/assets/
-*.DS_Store
+
+# Local / private
+/internal
+
+# macOS
+.DS_Store
+
+# Claude Code
+.agents/
+skills-lock.json

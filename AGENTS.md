@@ -1,85 +1,35 @@
-# Fishword Project Guide
+# Fishword — Agent Guide
 
-## Project Overview
+For domain vocabulary and system overview, read `CONTEXT.md` first.
+For architectural decisions, see `docs/adr/`.
 
-Fishword is a local vocabulary learning project centered on a Rust CLI. The CLI
-is the stable integration boundary for the Pi extension, npm packages, and
-future terminal/editor integrations.
+## CLI Usage
 
-The project currently supports:
+The CLI is the public boundary of the system. Frontends use `--json`; human-readable output is for manual testing only (see ADR-0002).
 
-- SQLite-backed decks, cards, card state, settings, and review logs
-- Importing fishword.deck.v1 JSONL (the only supported import format; other sources are converted to it offline, e.g. via `scripts/convert-qwerty-decks.mjs`)
-- kajweb/dict JSONL dictionaries converted into Fishword's deck.v1 JSONL format
-- FSRS-based review scheduling
-- Card selection through `current`; `rate` records a review and returns the next card in JSON output
-- Stable JSON protocol output for frontend integrations
-- npm-distributed CLI wrapper and Pi extension packages
-- Online catalog of pre-built decks hosted on GitHub Pages, downloadable via `fishword catalog`
-
-## CLI Role
-
-The CLI is the public boundary of the system. Frontends should prefer JSON
-protocol commands instead of parsing human-readable text.
-
-Common command flow:
-
-```bash
-fishword init
-fishword deck create CET-4 --description "大学英语四级" --json
-fishword import jsonl assets/dicts/kajweb/cet4.jsonl --deck-id <numeric-deck-id>
-fishword current --json
-fishword rate good --json
-```
-
-Or use the catalog to download a pre-built deck in one step:
-
-```bash
-fishword catalog list
-fishword catalog fetch kajweb:cet4
-fishword catalog fetch kajweb:toefl --duplicates merge --json
-```
-
-Important CLI details:
-
-- `import` currently takes a numeric local deck id via `--deck-id`; create or list decks first.
+Key details:
+- `import` takes a numeric local deck id via `--deck-id`; create or list decks first.
 - `import jsonl <path> --create-deck <name>` creates a new local deck and imports into it.
-- `catalog fetch` takes a catalog id such as `kajweb:cet4`, not a local numeric deck id.
-- `catalog fetch` creates a new deck automatically (or merges into an existing one with the same name).
-- There is no standalone `next` command in the current CLI. Use `current` to select/show the current card, and `rate again|hard|good|easy --json` to record a review and receive the next card.
-- Set `FISHWORD_CATALOG_URL` to override the catalog endpoint (useful for offline testing or self-hosted mirrors).
-- Human-readable output remains available for manual testing, for example:
+- `catalog fetch` takes a catalog id such as `kajweb:cet4`, not a local deck id.
+- No standalone `next` command. Use `current` to show the current card; `rate` advances to the next.
+- Set `FISHWORD_CATALOG_URL` to override the catalog endpoint for offline testing.
 
-```bash
-fishword current --format plain
-fishword current --format compact
-fishword current --format status
-fishword status --format statusline
-```
-
-## Broad Directory Layout
+## Directory Layout
 
 ```text
 .
-├── assets/
-│   └── dicts/
-│       ├── kajweb/
-│       │   ├── README.md
-│       │   ├── cet4.jsonl
-│       │   ├── cet6.jsonl
-│       │   └── ...
-│       └── qwerty-learner/
-│           ├── SOURCE.md
-│           ├── dicts/
-│           └── upstream/
+├── assets/dicts/
+│   ├── kajweb/          ← converted deck.v1 JSONL files
+│   └── qwerty-learner/  ← source dictionaries (Git LFS)
 ├── crates/
-│   ├── fishword-cli/
-│   └── fishword-core/
+│   ├── fishword-core/
+│   └── fishword-cli/
 ├── docs/
+│   ├── adr/
+│   └── agents/
 ├── migrations/
-│   └── 0001_init.sql
 ├── packages/
-│   ├── cli/
+│   ├── cli/             ← npm wrapper
 │   ├── cli-darwin-arm64/
 │   ├── cli-darwin-x64/
 │   ├── cli-linux-arm64/
@@ -87,127 +37,40 @@ fishword status --format statusline
 │   ├── cli-win32-x64/
 │   └── pi-extension/
 ├── schemas/
-├── scripts/
-│   ├── convert-qwerty-decks.mjs
-│   ├── kajweb_to_jsonl.py
-│   ├── prepare-pi-extension-assets.mjs
-│   └── smoke-cli.mjs
-├── Cargo.toml
-├── package.json
-├── pnpm-workspace.yaml
-└── README.md
+└── scripts/
 ```
-
-## Core Crates
-
-### `crates/fishword-core`
-
-Contains reusable domain logic:
-
-- `card`: card, meaning, pronunciation, review state, rating, and source models
-- `deck`: deck model
-- `storage`: SQLite persistence, migrations, settings, current-card state, review logs
-- `importer`: deck.v1 JSONL importer (the only supported runtime import format)
-- `scheduler`: FSRS review scheduling
-- `selector`: current-card and next-card selection policy
-- `protocol`: stable JSON DTOs for frontend consumers
-
-### `crates/fishword-cli`
-
-Contains the command-line interface. Keep it thin and delegate domain work to
-`fishword-core`.
 
 ## npm Packages and Pi Extension
 
 The JavaScript workspace is managed by pnpm under `packages/`.
 
-- `@fishword/cli` is the JavaScript wrapper and exposes the `fishword` npm binary.
-- `@fishword/cli-*` packages contain platform-specific Rust binaries.
-- `@fishword/pi-extension` is the Pi extension package.
+- `@fishword/cli` — JavaScript wrapper, exposes the `fishword` npm binary.
+- `@fishword/cli-*` — platform-specific Rust binaries.
+- `@fishword/pi-extension` — Pi extension package.
 
-The release workflow builds Rust binaries, publishes platform CLI packages,
-publishes `@fishword/cli`, builds the Pi extension, then publishes
-`@fishword/pi-extension`.
+Release order: Rust binaries → platform CLI packages → `@fishword/cli` → Pi extension build → `@fishword/pi-extension`.
 
-The Pi extension seeds three default decks on session start:
-
-- `CET-4`
-- `CET-6`
-- `TOEFL`
-
-The seed logic lives in:
-
-```text
-packages/pi-extension/src/defaultDecks.ts
-```
-
-It is intentionally driven from the extension, not Rust `init`: the extension
-knows where its npm package assets are, while the Rust CLI only receives local
-file paths and imports them.
-
-The Pi extension build copies the three default kajweb JSONL files from
-`assets/dicts/kajweb/` into package-local assets:
-
-```text
-packages/pi-extension/assets/dicts/kajweb/
-```
-
-That generated `packages/pi-extension/assets/` directory is ignored by Git but
-included in the npm tarball through `packages/pi-extension/package.json`.
+When adding a Pi overlay, track its `OverlayHandle` in `packages/pi-extension/src/index.ts` and include it in the Boss-key hide/summon state checks. A modal overlay (e.g. deck management) must prevent the review card overlay from reappearing on Boss-key restore.
 
 ## Dictionaries
 
 ### kajweb/dict
 
-Converted kajweb dictionaries live under:
-
-```text
-assets/dicts/kajweb/
-```
-
-They are Fishword deck.v1 JSONL files. The conversion script is:
+Deck.v1 JSONL files live under `assets/dicts/kajweb/`. To regenerate:
 
 ```bash
 uv run scripts/kajweb_to_jsonl.py --book CET4 -o assets/dicts/kajweb/cet4.jsonl
 ```
 
-When working with Python scripts, use `uv run` as required by this repository.
-
 ### Qwerty Learner
 
-Qwerty Learner source dictionaries still live under:
-
-```text
-assets/dicts/qwerty-learner/dicts/
-```
-
-Keep the source notice and upstream license files under:
-
-```text
-assets/dicts/qwerty-learner/SOURCE.md
-assets/dicts/qwerty-learner/upstream/LICENSE
-```
+Source files under `assets/dicts/qwerty-learner/dicts/` (Git LFS). Keep `SOURCE.md` and `upstream/LICENSE` in place.
 
 ### Online Catalog
 
-Selected dictionaries are published as fishword.deck.v1 JSONL files to GitHub
-Pages and indexed by a `catalog.json` manifest. The build is driven by:
+Built by `scripts/convert-qwerty-decks.mjs`, output to `dist/catalog/` (git-ignored). Deployed to `gh-pages` by `.github/workflows/publish-catalog.yml`.
 
-```text
-scripts/convert-qwerty-decks.mjs
-```
-
-Output goes to `dist/catalog/` (git-ignored). The workflow
-`.github/workflows/publish-catalog.yml` deploys this directory to the `gh-pages`
-branch under `catalog/` whenever dictionary sources or the script change on main.
-
-The catalog endpoint used by the CLI is:
-
-```
-https://chenggou1.github.io/fishword/catalog/catalog.json
-```
-
-To regenerate the catalog locally:
+To regenerate locally:
 
 ```bash
 node scripts/convert-qwerty-decks.mjs
@@ -215,62 +78,53 @@ node scripts/convert-qwerty-decks.mjs
 
 ### Git LFS
 
-Dictionary data files are tracked by Git LFS:
-
-- `assets/dicts/qwerty-learner/dicts/*.json`
-- `assets/dicts/kajweb/*.jsonl`
-
-After changing LFS patterns for already tracked files, run:
-
-```bash
-git add --renormalize <path>
 ```
+assets/dicts/qwerty-learner/dicts/*.json
+assets/dicts/kajweb/*.jsonl
+```
+
+After changing LFS patterns for already-tracked files: `git add --renormalize <path>`
 
 ## Data Storage
 
-The default database path is platform-specific. On macOS it is:
+Default DB path on macOS: `~/Library/Application Support/fishword/fishword.db`
 
-```text
-~/Library/Application Support/fishword/fishword.db
-```
+For isolated manual tests: `HOME=/private/tmp/fishword-test ./target/debug/fishword init`
 
-For isolated manual tests, override `HOME`:
+## Development Rules
 
-```bash
-HOME=/private/tmp/fishword-test ./target/debug/fishword init
-```
-
-## Development Notes
-
-- Use Rust workspace commands from the repository root.
-- Use pnpm workspace commands for JavaScript packages.
-- Keep frontend-facing integrations on the JSON protocol.
-- Do not parse human-readable CLI output in the Pi extension or other integrations.
-- When adding a Pi overlay, track its `OverlayHandle` in `packages/pi-extension/src/index.ts` and include it in the Boss-key hide/summon state checks. Opening a modal-style overlay such as deck management should not allow the review card overlay to reappear on the next Boss-key restore.
-- `current` and `status` must not write review logs.
-- Only explicit `rate again|hard|good|easy` writes `review_log` and updates `card_state`.
-- Do not make Rust `init` aware of npm package paths; package-local asset lookup belongs in the Pi extension.
+- Keep `fishword-cli` thin; delegate domain work to `fishword-core`.
+- Do not make Rust `init` aware of npm package paths; asset lookup belongs in the extension.
+- `current` and `status` must not write review logs (see ADR-0003).
 - Keep dictionary data tracked by Git LFS.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five-label vocabulary (needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-core + multi-extension layout: root `CONTEXT.md` covers the CLI protocol and core domain; each extension may have its own `CONTEXT.md` under `packages/<name>/`. See `docs/agents/domain.md`.
 
 ## Commit Message Format
 
-When creating Git commits, use the exact `type: message` format.
-
-Examples:
+Use `type: message` format. Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`.
 
 ```text
 refactor: refine catalog identifiers
 fix: handle empty import files
 docs: update catalog examples
-test: cover import target arguments
 ```
 
-Use a lowercase type such as `feat`, `fix`, `refactor`, `docs`, `test`,
-`chore`, or `ci`, followed by a colon, one space, and a concise imperative
-message. Do not use `type!:` / `feat!:` syntax unless the user explicitly asks
-for it.
+Do not use `type!:` syntax unless explicitly requested.
 
-Useful verification commands:
+## Verification Commands
 
 ```bash
 pnpm check
