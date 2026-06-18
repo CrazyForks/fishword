@@ -1,4 +1,4 @@
 assets/dicts/qwerty-learner/dicts/*.json filter=lfs diff=lfs merge=lfs -text
 assets/dicts/kajweb/*.jsonl filter=lfs diff=lfs merge=lfs -text
-docs/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
-docs/images/*.gif filter=lfs diff=lfs merge=lfs -text
+site/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
+site/images/*.gif filter=lfs diff=lfs merge=lfs -text

@@ -106,6 +106,36 @@
         color: var(--ink);
       }
 
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: clamp(14px, 2.4vw, 30px);
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .header-actions a:hover {
+        color: var(--ink);
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        min-height: 32px;
+        align-items: center;
+        border: 1px solid var(--ink);
+        background: var(--paper-strong);
+        color: var(--ink);
+        padding: 0 10px;
+        font-weight: 700;
+        box-shadow: 4px 4px 0 var(--green);
+      }
+
       .hero {
         position: relative;
         min-height: 76vh;
@@ -599,7 +629,7 @@
           align-items: flex-start;
         }
 
-        .nav {
+        .header-right {
           display: none;
         }
 
@@ -681,13 +711,18 @@
         <span class="brand-mark">fw</span>
         <span>Fishword</span>
       </a>
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="#demo">演示</a>
-        <a href="#positioning">定位</a>
-        <a href="#features">功能</a>
-        <a href="#cli">CLI</a>
-        <a href="https://github.com/Chenggou1/fishword">GitHub</a>
-      </nav>
+      <div class="header-right">
+        <nav class="nav" aria-label="页面内导航">
+          <a href="#demo">演示</a>
+          <a href="#positioning">定位</a>
+          <a href="#features">功能</a>
+          <a href="#cli">CLI</a>
+        </nav>
+        <div class="header-actions" aria-label="页面链接">
+          <a class="nav-cta" href="decks/">词库目录</a>
+          <a href="https://github.com/Chenggou1/fishword">GitHub</a>
+        </div>
+      </div>
     </header>
 
     <main id="top">
@@ -838,7 +873,7 @@
             <div class="feature-copy">
               <p class="label">词库管理</p>
               <h3>下载、切换、删除，一个面板搞定。</h3>
-              <p><code>/fw-manage</code> 打开词库管理器：左页查看本地词库并激活或删除，右页浏览远程目录并一键下载 CET-4、CET-6、TOEFL、IELTS、GRE、SAT、Oxford 等词库。每个词库保留独立的 FSRS 复习进度。</p>
+              <p><code>/fw-manage</code> 打开词库管理器：左页查看本地词库并激活或删除，右页浏览远程目录并一键下载 CET-4、CET-6、TOEFL、IELTS、GRE、SAT、Oxford 等词库。也可以先看 <a href="decks/">词库目录</a>，复制对应 CLI 下载命令。每个词库保留独立的 FSRS 复习进度。</p>
             </div>
           </article>
 
@@ -918,6 +953,7 @@ fishword rate good --json</code></pre>
         </p>
         <div class="hero-actions">
           <a class="button" href="https://www.npmjs.com/package/@fishword/pi-extension">npm 包</a>
+          <a class="button secondary" href="decks/">词库目录</a>
           <a class="button secondary" href="https://github.com/Chenggou1/fishword">GitHub 仓库</a>
         </div>
       </section>

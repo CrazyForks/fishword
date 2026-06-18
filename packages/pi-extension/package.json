@@ -29,7 +29,7 @@
     "extensions": [
       "./dist/index.js"
     ],
-    "image": "https://raw.githubusercontent.com/Chenggou1/fishword/main/docs/images/screenshot-card.png"
+    "image": "https://raw.githubusercontent.com/Chenggou1/fishword/main/site/images/screenshot-card.png"
   },
   "engines": {
     "node": ">=18"

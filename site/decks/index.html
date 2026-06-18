@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="浏览 Fishword 可用词库，并复制对应的 CLI 下载命令。"
+    />
+    <title>Fishword 词库目录</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f7f8f3;
+        --paper-strong: #ffffff;
+        --ink: #202521;
+        --muted: #65706a;
+        --line: #d9dfd5;
+        --blue: #496dff;
+        --green: #2ca66f;
+        --amber: #bd7f22;
+        --coral: #d9604f;
+        --plum: #62507e;
+        --shadow: 0 22px 70px rgba(32, 37, 33, 0.14);
+        --mono:
+          "SFMono-Regular", "Cascadia Code", "Liberation Mono", Menlo, monospace;
+        --sans:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(rgba(73, 109, 255, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(73, 109, 255, 0.04) 1px, transparent 1px),
+          var(--paper);
+        background-size: 24px 24px;
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 14px clamp(18px, 4vw, 56px);
+        border-bottom: 1px solid rgba(32, 37, 33, 0.1);
+        background: rgba(247, 248, 243, 0.88);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 1px solid var(--ink);
+        background: var(--paper-strong);
+        color: var(--blue);
+        box-shadow: 4px 4px 0 var(--green);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2vw, 26px);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .nav a:hover {
+        color: var(--ink);
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .header-actions a:hover {
+        color: var(--ink);
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        min-height: 32px;
+        align-items: center;
+        border: 1px solid var(--ink);
+        background: var(--paper-strong);
+        color: var(--ink);
+        padding: 0 10px;
+        font-weight: 700;
+        box-shadow: 4px 4px 0 var(--green);
+      }
+
+      main {
+        width: min(1120px, calc(100% - 36px));
+        margin: 0 auto;
+      }
+
+      .hero {
+        padding: clamp(62px, 9vw, 118px) 0 clamp(42px, 6vw, 76px);
+      }
+
+      .eyebrow,
+      .label {
+        margin: 0;
+        font-family: var(--mono);
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin-top: 18px;
+        font-size: clamp(44px, 7vw, 92px);
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .hero-copy {
+        max-width: 740px;
+        margin-top: 24px;
+        color: #39413c;
+        font-size: clamp(18px, 2vw, 23px);
+      }
+
+      .catalog-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 0 0 26px;
+      }
+
+      h2 {
+        margin-top: 10px;
+        font-size: clamp(32px, 5vw, 64px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .catalog-note {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 13px;
+        text-align: right;
+      }
+
+      .state {
+        border: 1px solid var(--ink);
+        background: var(--paper-strong);
+        box-shadow: 8px 8px 0 var(--blue);
+        padding: 22px;
+      }
+
+      .state p {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .deck-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .catalog-note {
+        padding: 18px 0 clamp(54px, 8vw, 96px);
+      }
+
+      .deck-card {
+        position: relative;
+        min-height: 280px;
+        overflow: hidden;
+        border: 1px solid var(--ink);
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 6px 6px 0 var(--card-accent, var(--blue));
+        transition:
+          transform 160ms ease,
+          box-shadow 160ms ease;
+      }
+
+      .deck-card:hover,
+      .deck-card:focus,
+      .deck-card:focus-within {
+        transform: translate(-2px, -2px);
+        box-shadow: 10px 10px 0 var(--card-accent, var(--blue));
+      }
+
+      .deck-summary {
+        display: grid;
+        gap: 18px;
+        padding: 22px;
+        min-height: 280px;
+      }
+
+      .deck-topline {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .deck-title h3 {
+        margin-top: 6px;
+        font-size: clamp(28px, 4vw, 42px);
+        line-height: 0.96;
+      }
+
+      .deck-id {
+        display: inline-block;
+        font-family: var(--mono);
+        color: var(--plum);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .word-count {
+        min-width: 92px;
+        border-left: 1px solid var(--line);
+        padding-left: 16px;
+        text-align: right;
+      }
+
+      .word-count strong {
+        display: block;
+        font-family: var(--mono);
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .word-count span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .deck-description {
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-self: end;
+      }
+
+      .tag {
+        border: 1px solid var(--line);
+        background: #fbfcf7;
+        padding: 4px 8px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .deck-facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .deck-facts span {
+        display: block;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+      }
+
+      .deck-actions {
+        position: absolute;
+        inset: auto 0 0;
+        display: grid;
+        gap: 12px;
+        border-top: 1px solid var(--ink);
+        background: #202521;
+        color: #f7f8f3;
+        padding: 16px;
+        transform: translateY(calc(100% - 4px));
+        transition: transform 180ms ease;
+      }
+
+      .deck-card:hover .deck-actions,
+      .deck-card:focus .deck-actions,
+      .deck-card:focus-within .deck-actions {
+        transform: translateY(0);
+      }
+
+      .action-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .command {
+        overflow: auto;
+        border: 1px solid rgba(247, 248, 243, 0.18);
+        background: rgba(247, 248, 243, 0.08);
+        padding: 8px 10px;
+        color: #f7f8f3;
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .copy-button {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #f7f8f3;
+        background: #edf1ff;
+        color: var(--ink);
+        cursor: pointer;
+        font: 700 12px var(--mono);
+        padding: 0 10px;
+        white-space: nowrap;
+      }
+
+      .site-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 26px clamp(18px, 4vw, 56px);
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .site-footer a {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      :focus-visible {
+        outline: 3px solid var(--amber);
+        outline-offset: 3px;
+      }
+
+      @media (max-width: 860px) {
+        .site-header {
+          align-items: flex-start;
+        }
+
+        .header-actions {
+          display: none;
+        }
+
+        .deck-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .catalog-head {
+          display: grid;
+          align-items: start;
+        }
+
+        .catalog-note {
+          text-align: left;
+        }
+
+        .deck-card {
+          min-height: 0;
+        }
+
+        .deck-summary {
+          min-height: 0;
+        }
+
+        .deck-actions {
+          position: static;
+          transform: none;
+        }
+
+        .action-row {
+          grid-template-columns: 1fr;
+        }
+
+        .copy-button {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .deck-topline,
+        .deck-facts {
+          grid-template-columns: 1fr;
+        }
+
+        .deck-topline {
+          display: grid;
+        }
+
+        .word-count {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          padding-top: 12px;
+          padding-left: 0;
+          text-align: left;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="../" aria-label="Fishword home">
+        <span class="brand-mark">fw</span>
+        <span>Fishword</span>
+      </a>
+      <div class="header-actions" aria-label="页面链接">
+        <a class="nav-cta" href="../">返回首页</a>
+        <a href="https://github.com/Chenggou1/fishword">GitHub</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Fishword Catalog</p>
+          <h1 id="hero-title">可下载词库，都在这里。</h1>
+          <p class="hero-copy">
+            先看有哪些词库，再复制对应的 <code>npx</code> 命令，在终端导入本地数据库。
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="catalog-title">
+        <div class="catalog-head">
+          <div>
+            <p class="label">可用词库</p>
+            <h2 id="catalog-title">选择词库，复制下载命令。</h2>
+          </div>
+        </div>
+
+        <div id="catalog-state" class="state" role="status" aria-live="polite">
+          <strong>加载词库目录中</strong>
+          <p>正在读取 Fishword 远程词库目录。</p>
+        </div>
+        <div id="deck-grid" class="deck-grid" hidden></div>
+        <p class="catalog-note" id="catalog-meta" aria-live="polite">正在读取远程目录...</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Fishword · 词库目录</span>
+      <a href="../">返回首页</a>
+    </footer>
+
+    <script>
+      const catalogUrls = [
+        "../catalog/catalog.json",
+        "https://chenggou1.github.io/fishword/catalog/catalog.json",
+      ];
+      const accentColors = ["#496dff", "#2ca66f", "#bd7f22", "#d9604f", "#62507e"];
+      const grid = document.querySelector("#deck-grid");
+      const state = document.querySelector("#catalog-state");
+      const meta = document.querySelector("#catalog-meta");
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "-";
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+      }
+
+      function formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return date.toLocaleDateString("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      }
+
+      async function fetchCatalog() {
+        let lastError;
+        for (const url of catalogUrls) {
+          try {
+            const response = await fetch(url, { cache: "no-cache" });
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+            const catalog = await response.json();
+            return { catalog, url };
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        throw lastError ?? new Error("catalog unavailable");
+      }
+
+      function renderDeck(deck, index) {
+        const id = deck.id ?? "";
+        const name = deck.name ?? id;
+        const command = `npx -y @fishword/cli catalog fetch ${id}`;
+        const tags = Array.isArray(deck.tags) ? deck.tags : [];
+        const sourceName = deck.source?.name ?? deck.source_id ?? "-";
+        const description = deck.description || "这个词库可以通过 CLI 下载到本地数据库。";
+        const accent = accentColors[index % accentColors.length];
+
+        return `
+          <article class="deck-card" tabindex="0" style="--card-accent: ${accent}">
+            <div class="deck-summary">
+              <div class="deck-topline">
+                <div class="deck-title">
+                  <span class="deck-id">${escapeHtml(id)}</span>
+                  <h3>${escapeHtml(name)}</h3>
+                </div>
+                <div class="word-count">
+                  <strong>${Number(deck.word_count || 0).toLocaleString("zh-CN")}</strong>
+                  <span>词</span>
+                </div>
+              </div>
+              <p class="deck-description">${escapeHtml(description)}</p>
+              <div class="tag-list" aria-label="Tags">
+                ${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+              </div>
+              <div class="deck-facts">
+                <div>来源<span>${escapeHtml(sourceName)}</span></div>
+                <div>语言<span>${escapeHtml(deck.language ?? "en")}</span></div>
+                <div>大小<span>${escapeHtml(formatBytes(deck.size_bytes))}</span></div>
+              </div>
+            </div>
+            <div class="deck-actions" aria-label="${escapeHtml(name)} download actions">
+              <div class="action-row">
+                <code class="command">${escapeHtml(command)}</code>
+                <button class="copy-button" type="button" data-copy="${escapeHtml(command)}">复制</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderCatalog(catalog, sourceUrl) {
+        const decks = Array.isArray(catalog.decks) ? catalog.decks : [];
+        if (decks.length === 0) {
+          state.hidden = false;
+          grid.hidden = true;
+          state.innerHTML = "<strong>词库目录为空</strong><p>远程词库目录已加载，但没有可展示的词库。</p>";
+          meta.textContent = "远程词库目录已加载 · 0 个词库";
+          return;
+        }
+
+        state.hidden = true;
+        grid.hidden = false;
+        grid.innerHTML = decks.map(renderDeck).join("");
+
+        const updatedAt = formatDate(catalog.updated_at);
+        const sourceLabel = sourceUrl.startsWith("http") ? "线上目录" : "本站目录";
+        meta.textContent = `目录来源：${sourceLabel} · 共 ${decks.length} 个词库${updatedAt ? ` · 更新于 ${updatedAt}` : ""}`;
+      }
+
+      function renderError(error) {
+        grid.hidden = true;
+        state.hidden = false;
+        state.innerHTML = `
+          <strong>没有读到词库目录</strong>
+          <p>请确认当前页面通过静态服务器打开，或稍后重试远程词库目录。错误信息：${escapeHtml(error.message)}</p>
+        `;
+        meta.textContent = "catalog 加载失败";
+      }
+
+      document.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-copy]");
+        if (!button) return;
+
+        const value = button.getAttribute("data-copy");
+        try {
+          await navigator.clipboard.writeText(value);
+          button.textContent = "已复制";
+          window.setTimeout(() => {
+            button.textContent = "复制";
+          }, 1500);
+        } catch {
+          button.textContent = "手动选择";
+        }
+      });
+
+      fetchCatalog()
+        .then(({ catalog, url }) => renderCatalog(catalog, url))
+        .catch(renderError);
+    </script>
+  </body>
+</html>

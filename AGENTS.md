@@ -37,6 +37,11 @@ Key details:
 │   ├── cli-win32-x64/
 │   └── pi-extension/
 ├── schemas/
+├── site/                ← GitHub Pages product site
+│   ├── index.html
+│   ├── decks/
+│   ├── images/
+│   └── videos/
 └── scripts/
 ```
 
