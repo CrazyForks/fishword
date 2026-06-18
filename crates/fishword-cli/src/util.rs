@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use clap::error::ErrorKind;
 use fishword_core::{selector::SelectedCard, storage::Storage};
 
 use crate::protocol::{render_card, CardResponse, ErrorResponse, TextFormat};
@@ -95,4 +96,36 @@ pub fn render_cli_error(json: bool, err: anyhow::Error) -> ! {
         eprintln!("Error: {err:?}");
     }
     std::process::exit(1);
+}
+
+pub fn render_clap_error_json(err: clap::Error) -> ! {
+    let code = clap_error_code(err.kind());
+    let message = err.render().to_string();
+    println!(
+        "{}",
+        serde_json::to_string(&ErrorResponse::new(code, message.trim()))
+            .expect("serializing protocol error should not fail")
+    );
+    std::process::exit(err.exit_code());
+}
+
+fn clap_error_code(kind: ErrorKind) -> &'static str {
+    match kind {
+        ErrorKind::InvalidValue | ErrorKind::ValueValidation | ErrorKind::InvalidUtf8 => {
+            "invalid_argument"
+        }
+        ErrorKind::UnknownArgument => "unknown_argument",
+        ErrorKind::InvalidSubcommand => "invalid_subcommand",
+        ErrorKind::ArgumentConflict => "argument_conflict",
+        ErrorKind::MissingRequiredArgument
+        | ErrorKind::MissingSubcommand
+        | ErrorKind::TooFewValues => "missing_required_argument",
+        ErrorKind::TooManyValues | ErrorKind::WrongNumberOfValues => "wrong_number_of_values",
+        ErrorKind::NoEquals => "invalid_argument",
+        ErrorKind::DisplayHelp
+        | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+        | ErrorKind::DisplayVersion => "display_requested",
+        ErrorKind::Io | ErrorKind::Format => "cli_parse_error",
+        _ => "cli_parse_error",
+    }
 }

@@ -56,6 +56,31 @@ fn assert_json_error(output: Output, code: &str, message: &str) {
     assert_eq!(value["error"]["message"], message);
 }
 
+fn assert_json_error_code(output: Output, code: &str) {
+    assert!(
+        !output.status.success(),
+        "command unexpectedly succeeded\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "JSON errors should be emitted on stdout only\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["schema"], "fishword.protocol.error.v1");
+    assert_eq!(value["error"]["code"], code);
+    assert!(
+        value["error"]["message"]
+            .as_str()
+            .is_some_and(|message| !message.trim().is_empty()),
+        "error message should be present"
+    );
+}
+
 #[test]
 fn invalid_rating_with_json_returns_protocol_error() {
     let home = temp_home("json-invalid-rating");
@@ -100,4 +125,25 @@ fn deck_not_found_with_json_returns_protocol_error() {
         "deck_not_found",
         "Deck not found: 999",
     );
+}
+
+#[test]
+fn missing_required_import_target_with_json_returns_protocol_error() {
+    let home = temp_home("json-missing-import-target");
+    let jsonl = write_jsonl(&home);
+
+    assert_json_error_code(
+        fishword(
+            &home,
+            &["import", "jsonl", jsonl.to_str().unwrap(), "--json"],
+        ),
+        "missing_required_argument",
+    );
+}
+
+#[test]
+fn unknown_argument_with_json_returns_protocol_error() {
+    let home = temp_home("json-unknown-argument");
+
+    assert_json_error_code(fishword(&home, &["--json"]), "unknown_argument");
 }
