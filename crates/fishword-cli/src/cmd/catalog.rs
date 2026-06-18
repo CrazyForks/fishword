@@ -237,7 +237,7 @@ fn fetch_url(url: &str, json_errors: bool) -> Result<String> {
             .read_to_string()
             .context("failed to read response body"),
         Err(e) => {
-            return Err(cmd_error(
+            Err(cmd_error(
                 json_errors,
                 "network_error",
                 &format!("Network request failed: {e}"),

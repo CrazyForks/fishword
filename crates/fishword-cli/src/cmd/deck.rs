@@ -173,7 +173,10 @@ fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
 
 fn cmd_deck_current() -> Result<()> {
     let storage = open_storage()?;
-    match storage.get_active_deck().context("failed to read active deck")? {
+    match storage
+        .get_active_deck()
+        .context("failed to read active deck")?
+    {
         Some(deck) => println!(
             "Active deck: {} ({}) {}",
             deck.name,

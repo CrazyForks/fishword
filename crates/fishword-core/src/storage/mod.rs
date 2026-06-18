@@ -13,7 +13,9 @@ use crate::{
 fn migrations() -> Migrations<'static> {
     Migrations::new(vec![
         M::up(include_str!("../../../../migrations/0001_init.sql")),
-        M::up(include_str!("../../../../migrations/0002_clean_empty_tags.sql")),
+        M::up(include_str!(
+            "../../../../migrations/0002_clean_empty_tags.sql"
+        )),
     ])
 }
 
@@ -1495,7 +1497,8 @@ mod tests {
         // Simulate a pre-migration database: run only M1 without setting user_version,
         // so Storage::open() will trigger migration 0002 (clean_empty_tags).
         let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql")).unwrap();
+        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql"))
+            .unwrap();
         conn.execute(
             "INSERT INTO decks (name, description) VALUES (?1, ?2)",
             params!["legacy", Option::<String>::None],
@@ -1533,7 +1536,8 @@ mod tests {
         // Simulate a pre-migration database: run only M1 without setting user_version,
         // so Storage::open() will trigger migration 0002 (clean_empty_tags).
         let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql")).unwrap();
+        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql"))
+            .unwrap();
         conn.execute(
             "INSERT INTO decks (name, description) VALUES (?1, ?2)",
             params!["CET-4", Option::<String>::None],

@@ -10,7 +10,6 @@ pub fn open_storage() -> Result<Storage> {
     Storage::open(&path).with_context(|| format!("cannot open database at {}", path.display()))
 }
 
-
 pub fn print_selected_card(
     storage: &Storage,
     selected: &SelectedCard,
