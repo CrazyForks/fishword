@@ -9,22 +9,34 @@ use fishword_core::{
 
 use crate::{
     args::{CardOutputArgs, RateArgs, StatsArgs, StatusArgs},
-    util::{exit_json_error, open_storage, print_json, print_selected_card, resolve_deck_scope},
+    util::{cmd_error, open_storage, print_json, print_selected_card, resolve_deck_scope},
 };
 
 pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
     let storage = open_storage()?;
     let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
-            exit_json_error("no_cards", "No cards found. Import a deck first.");
+            return Err(cmd_error(
+                true,
+                "no_cards",
+                "No cards found. Import a deck first.",
+            ));
         }
         println!("No cards found. Import a deck first.");
         return Ok(());
     };
     match selector::select_current(&storage, deck.id).context("failed to select current card")? {
         Some(selected) => print_selected_card(&storage, &selected, args, true)?,
-        None if args.json => exit_json_error("no_cards", "No cards found. Import a deck first."),
-        None => println!("No cards found. Import a deck first."),
+        None => {
+            if args.json {
+                return Err(cmd_error(
+                    true,
+                    "no_cards",
+                    "No cards found. Import a deck first.",
+                ));
+            }
+            println!("No cards found. Import a deck first.");
+        }
     }
     Ok(())
 }
@@ -33,7 +45,11 @@ pub fn cmd_status(args: &StatusArgs) -> Result<()> {
     let storage = open_storage()?;
     let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
-            exit_json_error("no_cards", "No cards found. Import a deck first.");
+            return Err(cmd_error(
+                true,
+                "no_cards",
+                "No cards found. Import a deck first.",
+            ));
         }
         println!("No cards found. Import a deck first.");
         return Ok(());
@@ -63,15 +79,20 @@ pub fn cmd_status(args: &StatusArgs) -> Result<()> {
 
 pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
     if args.range != "7d" {
-        if args.json {
-            exit_json_error("invalid_range", &format!("Invalid range: {}", args.range));
-        }
-        anyhow::bail!("invalid --range '{}', expected 7d", args.range);
+        return Err(cmd_error(
+            args.json,
+            "invalid_range",
+            &format!("Invalid range: {}", args.range),
+        ));
     }
     let storage = open_storage()?;
     let Some(deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
         if args.json {
-            exit_json_error("no_cards", "No cards found. Import a deck first.");
+            return Err(cmd_error(
+                true,
+                "no_cards",
+                "No cards found. Import a deck first.",
+            ));
         }
         println!("No cards found. Import a deck first.");
         return Ok(());
@@ -124,35 +145,32 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
         })?;
     let storage = open_storage()?;
     let Some(scope_deck) = resolve_deck_scope(&storage, args.deck, args.json)? else {
-        if args.json {
-            exit_json_error("no_cards", "No cards found. Import a deck first.");
-        }
-        anyhow::bail!("No cards found. Import a deck first.");
+        return Err(cmd_error(
+            args.json,
+            "no_cards",
+            "No cards found. Import a deck first.",
+        ));
     };
     let Some(card_id) = storage
         .get_current_card_id()
         .context("failed to read current card")?
     else {
-        if args.json {
-            exit_json_error(
-                "no_current_card",
-                "No current card. Run `fishword current` first.",
-            );
-        }
-        anyhow::bail!("No current card. Run `fishword current` first.");
+        return Err(cmd_error(
+            args.json,
+            "no_current_card",
+            "No current card. Run `fishword current` first.",
+        ));
     };
     let card = storage
         .get_card_by_id(card_id)
         .context("failed to read current card")?
         .context("Current card disappeared")?;
     if card.deck_id != scope_deck.id {
-        if args.json {
-            exit_json_error(
-                "no_current_card",
-                "No current card in this deck. Run `fishword current` first.",
-            );
-        }
-        anyhow::bail!("No current card in this deck. Run `fishword current` first.");
+        return Err(cmd_error(
+            args.json,
+            "no_current_card",
+            "No current card in this deck. Run `fishword current` first.",
+        ));
     }
     let review = Scheduler::review(&storage, card_id, rating).context("failed to rate card")?;
     let next = selector::select_next(&storage, scope_deck.id)

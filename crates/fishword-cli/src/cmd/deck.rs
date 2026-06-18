@@ -10,7 +10,7 @@ use fishword_core::{
 
 use crate::{
     args::{CardListArgs, DeckCmd},
-    util::{exit_json_error, open_storage, print_json, resolve_deck_scope},
+    util::{cmd_error, open_storage, print_json, resolve_deck_scope},
 };
 
 pub fn cmd_init() -> Result<()> {
@@ -81,14 +81,12 @@ fn cmd_deck_create(name: &str, description: Option<&str>, json: bool) -> Result<
                 println!("Created deck: {} (id={})", deck.name, deck.id);
             }
         }
-        Err(CoreError::AlreadyExists(_)) if json => {
-            exit_json_error(
+        Err(CoreError::AlreadyExists(_)) => {
+            return Err(cmd_error(
+                json,
                 "deck_already_exists",
                 &format!("Deck already exists: {name}"),
-            );
-        }
-        Err(CoreError::AlreadyExists(_)) => {
-            anyhow::bail!("Deck already exists: {name}");
+            ));
         }
         Err(e) => return Err(anyhow::anyhow!(e)),
     }
@@ -102,10 +100,13 @@ fn cmd_deck_use(deck_id: i64, json: bool) -> Result<()> {
         .with_context(|| format!("failed to read deck {deck_id}"))?
     {
         Some(d) => d,
-        None if json => {
-            exit_json_error("deck_not_found", &format!("Deck not found: {deck_id}"));
+        None => {
+            return Err(cmd_error(
+                json,
+                "deck_not_found",
+                &format!("Deck not found: {deck_id}"),
+            ))
         }
-        None => anyhow::bail!("deck not found: {deck_id}"),
     };
     storage
         .set_active_deck_id(Some(deck.id))
@@ -131,11 +132,12 @@ fn cmd_deck_delete(id: i64, json: bool) -> Result<()> {
                 println!("Deleted deck: {} (id={})", deck.name, deck.id);
             }
         }
-        Err(CoreError::NotFound(_)) if json => {
-            exit_json_error("deck_not_found", &format!("Deck not found: {id}"));
-        }
         Err(CoreError::NotFound(_)) => {
-            anyhow::bail!("Deck not found: {id}");
+            return Err(cmd_error(
+                json,
+                "deck_not_found",
+                &format!("Deck not found: {id}"),
+            ));
         }
         Err(e) => return Err(anyhow::anyhow!(e)),
     }
@@ -152,20 +154,19 @@ fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
                 println!("Renamed deck {} to: {}", id, deck.name);
             }
         }
-        Err(CoreError::NotFound(_)) if json => {
-            exit_json_error("deck_not_found", &format!("Deck not found: {id}"));
-        }
         Err(CoreError::NotFound(_)) => {
-            anyhow::bail!("Deck not found: {id}");
-        }
-        Err(CoreError::AlreadyExists(_)) if json => {
-            exit_json_error(
-                "deck_already_exists",
-                &format!("Deck already exists: {new_name}"),
-            );
+            return Err(cmd_error(
+                json,
+                "deck_not_found",
+                &format!("Deck not found: {id}"),
+            ));
         }
         Err(CoreError::AlreadyExists(_)) => {
-            anyhow::bail!("Deck already exists: {new_name}");
+            return Err(cmd_error(
+                json,
+                "deck_already_exists",
+                &format!("Deck already exists: {new_name}"),
+            ));
         }
         Err(e) => return Err(anyhow::anyhow!(e)),
     }
@@ -188,22 +189,18 @@ fn cmd_deck_current() -> Result<()> {
 
 pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
     if args.page < 1 {
-        if args.json {
-            exit_json_error("invalid_page", "Page must be greater than or equal to 1.");
-        }
-        anyhow::bail!("invalid --page '{}', expected a value >= 1", args.page);
+        return Err(cmd_error(
+            args.json,
+            "invalid_page",
+            "Page must be greater than or equal to 1.",
+        ));
     }
     if args.page_size < 1 {
-        if args.json {
-            exit_json_error(
-                "invalid_page_size",
-                "Page size must be greater than or equal to 1.",
-            );
-        }
-        anyhow::bail!(
-            "invalid --page-size '{}', expected a value >= 1",
-            args.page_size
-        );
+        return Err(cmd_error(
+            args.json,
+            "invalid_page_size",
+            "Page size must be greater than or equal to 1.",
+        ));
     }
     let storage = open_storage()?;
     let deck = match storage
@@ -211,10 +208,13 @@ pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
         .with_context(|| format!("failed to read deck {}", args.deck))?
     {
         Some(deck) => deck,
-        None if args.json => {
-            exit_json_error("deck_not_found", &format!("Deck not found: {}", args.deck));
+        None => {
+            return Err(cmd_error(
+                args.json,
+                "deck_not_found",
+                &format!("Deck not found: {}", args.deck),
+            ))
         }
-        None => anyhow::bail!("deck not found: {}", args.deck),
     };
     let total = storage
         .card_count_by_deck(deck.id)

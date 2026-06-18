@@ -14,7 +14,7 @@ use serde::Deserialize;
 
 use crate::{
     args::CatalogCmd,
-    util::{exit_json_error, open_storage, print_json},
+    util::{cmd_error, open_storage, print_json},
 };
 
 const DEFAULT_CATALOG_URL: &str = "https://chenggou1.github.io/fishword/catalog/catalog.json";
@@ -122,17 +122,11 @@ fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
     let catalog = fetch_catalog(json)?;
     let entry = match catalog.decks.into_iter().find(|e| e.id == catalog_id) {
         Some(e) => e,
-        None if json => {
-            exit_json_error(
-                "deck_not_found",
-                &format!(
-                    "Catalog deck '{catalog_id}' not found. Run `fishword catalog list` to see available decks."
-                ),
-            );
-        }
-        None => anyhow::bail!(
-            "Catalog deck '{catalog_id}' not found. Run `fishword catalog list` to see available decks."
-        ),
+        None => return Err(cmd_error(
+            json,
+            "deck_not_found",
+            &format!("Catalog deck '{catalog_id}' not found. Run `fishword catalog list` to see available decks."),
+        )),
     };
 
     let jsonl_body = fetch_url(&entry.url, json).with_context(|| {
@@ -175,10 +169,7 @@ fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
                      Rename or delete that deck, then retry.",
                     entry.name
                 );
-                if json {
-                    exit_json_error("deck_name_conflict", &message);
-                }
-                anyhow::bail!(message);
+                return Err(cmd_error(json, "deck_name_conflict", &message));
             }
             Err(e) => return Err(anyhow::anyhow!(e)).context("failed to write imported cards"),
         }
@@ -244,9 +235,12 @@ fn fetch_url(url: &str, json_errors: bool) -> Result<String> {
             .into_body()
             .read_to_string()
             .context("failed to read response body"),
-        Err(e) if json_errors => {
-            exit_json_error("network_error", &format!("Network request failed: {e}"));
+        Err(e) => {
+            return Err(cmd_error(
+                json_errors,
+                "network_error",
+                &format!("Network request failed: {e}"),
+            ))
         }
-        Err(e) => anyhow::bail!("network request failed: {e}"),
     }
 }

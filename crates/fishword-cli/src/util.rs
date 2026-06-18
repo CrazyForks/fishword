@@ -24,10 +24,13 @@ pub fn resolve_deck_scope(
             .with_context(|| format!("failed to read deck {deck_id}"))?
         {
             Some(deck) => Ok(Some(deck)),
-            None if json_errors => {
-                exit_json_error("deck_not_found", &format!("Deck not found: {deck_id}"));
+            None => {
+                return Err(cmd_error(
+                    json_errors,
+                    "deck_not_found",
+                    &format!("Deck not found: {deck_id}"),
+                ))
             }
-            None => anyhow::bail!("Deck not found: {deck_id}"),
         };
     }
 
@@ -47,15 +50,13 @@ pub fn resolve_deck_scope(
                 .context("failed to set active deck")?;
             Ok(Some(deck.clone()))
         }
-        _ if json_errors => {
-            exit_json_error(
+        _ => {
+            return Err(cmd_error(
+                json_errors,
                 "no_active_deck",
                 "Multiple decks found. Run `fishword deck use <deck>` or pass `--deck <deck>`.",
-            );
+            ))
         }
-        _ => anyhow::bail!(
-            "Multiple decks found. Run `fishword deck use <deck>` or pass `--deck <deck>`."
-        ),
     }
 }
 
@@ -98,6 +99,17 @@ pub fn print_selected_card(
 pub fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {
     println!("{}", serde_json::to_string(value)?);
     Ok(())
+}
+
+/// Returns an `anyhow::Error` for the given error code and message.
+/// In JSON mode, prints the error as a JSON response and exits the process immediately.
+/// In text mode, returns a plain `anyhow` error for the caller to propagate.
+pub fn cmd_error(json: bool, code: &str, message: &str) -> anyhow::Error {
+    if json {
+        exit_json_error(code, message)
+    } else {
+        anyhow::anyhow!("{}", message)
+    }
 }
 
 pub fn exit_json_error(code: &str, message: &str) -> ! {
