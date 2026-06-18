@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-tui --external:@fishword/cli --outfile=dist/index.js",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fishword/cli": "workspace:*"
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@earendil-works/pi-tui": "0.79.1",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "vitest": "^4.1.9"
   }
 }

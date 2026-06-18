@@ -20,7 +20,8 @@
     "format:check:rust": "cargo fmt --all -- --check",
     "dev:pi": "pnpm run build:pi && pi --extension ./packages/pi-extension/dist/index.js",
     "build:pi": "pnpm --filter @fishword/pi-extension run build",
-    "check:pi": "pnpm --filter @fishword/pi-extension run check"
+    "test:pi": "pnpm --filter @fishword/pi-extension run test",
+    "check:pi": "pnpm --filter @fishword/pi-extension run check && pnpm run test:pi"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
