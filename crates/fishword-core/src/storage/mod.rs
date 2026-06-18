@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use rusqlite_migration::{Migrations, M};
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -9,7 +10,12 @@ use crate::{
     scheduler::ScheduledReview,
 };
 
-const MIGRATION: &str = include_str!("../../../../migrations/0001_init.sql");
+fn migrations() -> Migrations<'static> {
+    Migrations::new(vec![
+        M::up(include_str!("../../../../migrations/0001_init.sql")),
+        M::up(include_str!("../../../../migrations/0002_clean_empty_tags.sql")),
+    ])
+}
 
 pub struct Storage {
     conn: Connection,
@@ -44,12 +50,16 @@ impl Storage {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let conn = Connection::open(path)?;
+        let mut conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
-        conn.execute_batch(MIGRATION)?;
+        // Legacy shims for databases created before the migration system existed.
+        // ensure_card_metadata_columns runs first so that the tags column exists
+        // before migration 0002 (clean_empty_tags) references it.
         ensure_card_metadata_columns(&conn)?;
         ensure_deck_metadata_columns(&conn)?;
-        remove_empty_card_tags(&conn)?;
+        migrations()
+            .to_latest(&mut conn)
+            .map_err(|e| Error::InvalidInput(e.to_string()))?;
         Ok(Self { conn })
     }
 
@@ -838,7 +848,7 @@ fn import_cards_on(
                 summary.updated += 1;
             }
             (Some(existing), DuplicateStrategy::Merge) => {
-                let merged = merge_import_card(&existing, import_card);
+                let merged = crate::importer::merge_import_card(&existing, import_card);
                 update_card_from_import_on(conn, existing.id, &merged)?;
                 summary.merged += 1;
             }
@@ -971,49 +981,12 @@ fn json_to_sql_error(error: serde_json::Error) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
 }
 
-fn merge_import_card(existing: &Card, incoming: &ImportCard) -> ImportCard {
-    let mut meanings = existing.meanings.clone();
-    for meaning in &incoming.meanings {
-        if !meanings.iter().any(|item| {
-            item.part_of_speech == meaning.part_of_speech && item.definition == meaning.definition
-        }) {
-            meanings.push(meaning.clone());
-        }
-    }
-
-    let mut pronunciations = existing.pronunciations.clone();
-    for pronunciation in &incoming.pronunciations {
-        if !pronunciations
-            .iter()
-            .any(|item| item.notation == pronunciation.notation)
-        {
-            pronunciations.push(pronunciation.clone());
-        }
-    }
-
-    let mut tags = existing.tags.clone();
-    for tag in &incoming.tags {
-        if !tags.contains(tag) {
-            tags.push(tag.clone());
-        }
-    }
-
-    ImportCard {
-        word: existing.word.clone(),
-        language: if incoming.language.is_empty() {
-            existing.language.clone()
-        } else {
-            incoming.language.clone()
-        },
-        meanings,
-        pronunciations,
-        tags,
-        source: incoming.source.clone().or_else(|| existing.source.clone()),
-    }
-}
-
 fn ensure_card_metadata_columns(conn: &Connection) -> Result<()> {
     let columns = table_columns(conn, "cards")?;
+    if columns.is_empty() {
+        // Table doesn't exist yet — migrations will create it with all columns.
+        return Ok(());
+    }
     let missing = [
         (
             "language",
@@ -1048,6 +1021,9 @@ fn ensure_card_metadata_columns(conn: &Connection) -> Result<()> {
 
 fn ensure_deck_metadata_columns(conn: &Connection) -> Result<()> {
     let columns = table_columns(conn, "decks")?;
+    if columns.is_empty() {
+        return Ok(());
+    }
     if !columns.iter().any(|column| column == "catalog_id") {
         conn.execute("ALTER TABLE decks ADD COLUMN catalog_id TEXT", [])?;
     }
@@ -1067,33 +1043,6 @@ fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(columns)
-}
-
-fn remove_empty_card_tags(conn: &Connection) -> Result<()> {
-    let rows = {
-        let mut stmt = conn.prepare("SELECT id, tags FROM cards")?;
-        let rows = stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-
-    for (id, tags_json) in rows {
-        let mut tags = serde_json::from_str::<Vec<String>>(&tags_json)?;
-        let original_len = tags.len();
-        tags.retain(|tag| !tag.is_empty());
-        if tags.len() != original_len {
-            let cleaned = serde_json::to_string(&tags)?;
-            conn.execute(
-                "UPDATE cards SET tags = ?1 WHERE id = ?2",
-                params![cleaned, id],
-            )?;
-        }
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -1543,8 +1492,10 @@ mod tests {
     fn test_open_removes_empty_card_tags() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.keep().join("tags.db");
+        // Simulate a pre-migration database: run only M1 without setting user_version,
+        // so Storage::open() will trigger migration 0002 (clean_empty_tags).
         let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(MIGRATION).unwrap();
+        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql")).unwrap();
         conn.execute(
             "INSERT INTO decks (name, description) VALUES (?1, ?2)",
             params!["legacy", Option::<String>::None],
@@ -1579,8 +1530,10 @@ mod tests {
     fn test_open_preserves_non_empty_legacy_tags_while_cleaning_empty_tags() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.keep().join("legacy-tags.db");
+        // Simulate a pre-migration database: run only M1 without setting user_version,
+        // so Storage::open() will trigger migration 0002 (clean_empty_tags).
         let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(MIGRATION).unwrap();
+        conn.execute_batch(include_str!("../../../../migrations/0001_init.sql")).unwrap();
         conn.execute(
             "INSERT INTO decks (name, description) VALUES (?1, ?2)",
             params!["CET-4", Option::<String>::None],

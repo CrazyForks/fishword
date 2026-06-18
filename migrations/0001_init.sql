@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS decks (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT    NOT NULL UNIQUE,
     description TEXT,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    catalog_id  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS cards (

@@ -3,7 +3,7 @@ use std::{path::Path, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    card::{Meaning, Pronunciation, Source},
+    card::{Card, Meaning, Pronunciation, Source},
     error::{Error, Result},
 };
 
@@ -142,6 +142,51 @@ fn deck_v1_to_import_card(card: DeckCardV1) -> Result<ImportCard> {
         tags: card.tags,
         source: card.source,
     })
+}
+
+/// Merges an incoming import card into an existing card, combining meanings,
+/// pronunciations, and tags without duplicates. This is the implementation of
+/// `DuplicateStrategy::Merge` — kept here because merge policy belongs to the
+/// import domain, not to storage.
+pub(crate) fn merge_import_card(existing: &Card, incoming: &ImportCard) -> ImportCard {
+    let mut meanings = existing.meanings.clone();
+    for meaning in &incoming.meanings {
+        if !meanings.iter().any(|item| {
+            item.part_of_speech == meaning.part_of_speech && item.definition == meaning.definition
+        }) {
+            meanings.push(meaning.clone());
+        }
+    }
+
+    let mut pronunciations = existing.pronunciations.clone();
+    for pronunciation in &incoming.pronunciations {
+        if !pronunciations
+            .iter()
+            .any(|item| item.notation == pronunciation.notation)
+        {
+            pronunciations.push(pronunciation.clone());
+        }
+    }
+
+    let mut tags = existing.tags.clone();
+    for tag in &incoming.tags {
+        if !tags.contains(tag) {
+            tags.push(tag.clone());
+        }
+    }
+
+    ImportCard {
+        word: existing.word.clone(),
+        language: if incoming.language.is_empty() {
+            existing.language.clone()
+        } else {
+            incoming.language.clone()
+        },
+        meanings,
+        pronunciations,
+        tags,
+        source: incoming.source.clone().or_else(|| existing.source.clone()),
+    }
 }
 
 fn default_language() -> String {
