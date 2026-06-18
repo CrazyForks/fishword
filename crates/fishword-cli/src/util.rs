@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
-use fishword_core::{
-    protocol::{render_card, CardResponse, ErrorResponse, TextFormat},
-    selector::SelectedCard,
-    storage::Storage,
-};
+use fishword_core::{selector::SelectedCard, storage::Storage};
+
+use crate::protocol::{render_card, CardResponse, ErrorResponse, TextFormat};
 
 use crate::args::CardOutputArgs;
 

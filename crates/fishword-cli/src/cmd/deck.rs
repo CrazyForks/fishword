@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
-use fishword_core::{
-    error::Error as CoreError,
-    protocol::{
-        CardListResponse, DeckCreateResponse, DeckDeleteResponse, DeckListResponse,
-        DeckRenameResponse, DeckUseResponse,
-    },
-    storage::Storage,
+use fishword_core::{error::Error as CoreError, storage::Storage};
+
+use crate::protocol::{
+    CardListResponse, DeckCreateResponse, DeckDeleteResponse, DeckListResponse, DeckRenameResponse,
+    DeckUseResponse,
 };
 
 use crate::{

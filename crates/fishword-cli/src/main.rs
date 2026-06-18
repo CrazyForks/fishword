@@ -1,5 +1,6 @@
 mod args;
 mod cmd;
+mod protocol;
 mod util;
 
 use anyhow::Result;

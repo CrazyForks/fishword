@@ -1,11 +1,8 @@
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use fishword_core::{
-    card::Rating,
-    protocol::{RateResponse, StatsResponse, StatusResponse},
-    scheduler::Scheduler,
-    selector,
-};
+use fishword_core::{card::Rating, scheduler::Scheduler, selector};
+
+use crate::protocol::{RateResponse, StatsResponse, StatusResponse};
 
 use crate::{
     args::{CardOutputArgs, RateArgs, StatsArgs, StatusArgs},

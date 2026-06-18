@@ -5,10 +5,11 @@ use fishword_core::{
     card::Source,
     error::Error as CoreError,
     importer::{import_jsonl_str, DuplicateStrategy},
-    protocol::{
-        CatalogDeckEntry, CatalogFetchResponse, CatalogListResponse, ImportResponse,
-        CATALOG_FETCH_SCHEMA, CATALOG_LIST_SCHEMA, IMPORT_SCHEMA,
-    },
+};
+
+use crate::protocol::{
+    CatalogDeckEntry, CatalogFetchResponse, CatalogListResponse, ImportResponse,
+    CATALOG_FETCH_SCHEMA, CATALOG_LIST_SCHEMA, IMPORT_SCHEMA,
 };
 use serde::Deserialize;
 

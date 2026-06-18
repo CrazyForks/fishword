@@ -1,7 +1,7 @@
 use chrono::{Duration, NaiveDate, Utc};
 use serde::Serialize;
 
-use crate::{
+use fishword_core::{
     card::Card,
     deck::Deck,
     scheduler::ScheduledReview,
@@ -129,7 +129,7 @@ pub struct CatalogDeckEntry {
     pub language: String,
     pub word_count: u64,
     pub tags: Vec<String>,
-    pub source: Option<crate::card::Source>,
+    pub source: Option<fishword_core::card::Source>,
     pub url: String,
     pub size_bytes: u64,
 }
@@ -246,7 +246,7 @@ pub struct DailyStatsFields {
 }
 
 impl DeckUseResponse {
-    pub fn new(deck: &crate::deck::Deck) -> Self {
+    pub fn new(deck: &Deck) -> Self {
         let display = deck
             .description
             .clone()
@@ -447,7 +447,7 @@ impl StatsResponse {
 }
 
 impl DeckListResponse {
-    pub fn new(decks: Vec<crate::deck::Deck>, active_id: Option<i64>) -> Self {
+    pub fn new(decks: Vec<Deck>, active_id: Option<i64>) -> Self {
         Self {
             schema: DECKS_SCHEMA,
             decks: decks
@@ -764,10 +764,11 @@ fn good_or_easy_rate(good: i64, easy: i64, reviews: i64) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
+    use fishword_core::{
         card::{Meaning, Pronunciation, Rating, ReviewState, Source},
         scheduler::ScheduledReview,
         selector::SelectedCard,
+        storage::ProgressCounts,
     };
 
     fn sample_card() -> Card {
@@ -828,7 +829,7 @@ mod tests {
         );
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_current_sample.json"
+            "../fixtures/protocol_current_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -842,7 +843,7 @@ mod tests {
         ))
         .unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_error_sample.json"
+            "../fixtures/protocol_error_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -853,7 +854,7 @@ mod tests {
         let response = DeckListResponse::new(vec![sample_deck()], Some(1));
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_decks_sample.json"
+            "../fixtures/protocol_decks_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -864,7 +865,7 @@ mod tests {
         let response = DeckUseResponse::new(&sample_deck());
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_deck_use_sample.json"
+            "../fixtures/protocol_deck_use_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -875,7 +876,7 @@ mod tests {
         let response = CardListResponse::new(&sample_deck(), vec![sample_card()], 1, 50, 1);
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_card_list_sample.json"
+            "../fixtures/protocol_card_list_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -908,7 +909,7 @@ mod tests {
         );
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_rate_sample.json"
+            "../fixtures/protocol_rate_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -928,7 +929,7 @@ mod tests {
         );
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_status_sample.json"
+            "../fixtures/protocol_status_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -995,7 +996,7 @@ mod tests {
         );
         let value = serde_json::to_value(response).unwrap();
         let fixture = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../fixtures/protocol_stats_sample.json"
+            "../fixtures/protocol_stats_sample.json"
         ))
         .unwrap();
         assert_eq!(value, fixture);
@@ -1014,7 +1015,7 @@ mod tests {
                 language: "en".to_string(),
                 word_count: 4544,
                 tags: vec!["cet4".to_string(), "exam".to_string(), "zh".to_string()],
-                source: Some(Source {
+                source: Some(fishword_core::card::Source {
                     name: "kajweb/dict".to_string(),
                     license: None,
                 }),
@@ -1058,7 +1059,7 @@ mod tests {
     #[test]
     fn protocol_schema_is_valid_json() {
         serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../../../schemas/protocol.v1.schema.json"
+            "../../../schemas/protocol.v1.schema.json"
         ))
         .unwrap();
     }

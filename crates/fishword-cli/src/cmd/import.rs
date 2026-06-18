@@ -5,8 +5,9 @@ use fishword_core::{
     deck::Deck,
     error::Error as CoreError,
     importer::{import_jsonl_file, DuplicateStrategy},
-    protocol::{ImportResponse, IMPORT_SCHEMA},
 };
+
+use crate::protocol::{ImportResponse, IMPORT_SCHEMA};
 
 use crate::{
     args::{ImportArgs, ImportCmd},
