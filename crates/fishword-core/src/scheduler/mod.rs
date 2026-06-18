@@ -60,7 +60,7 @@ impl Scheduler {
             .ok_or_else(|| Error::NotFound(format!("card_state for card {card_id}")))?;
         let last_reviewed_at = storage.last_reviewed_at(card_id)?;
         let scheduled = self.compute_review(&state, last_reviewed_at.as_deref(), rating)?;
-        storage.record_review_and_set_current(&scheduled)?;
+        storage.complete_review(&scheduled)?;
         Ok(scheduled)
     }
 

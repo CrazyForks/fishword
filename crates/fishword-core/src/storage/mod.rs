@@ -619,19 +619,10 @@ impl Storage {
         Ok(rows)
     }
 
-    /// Persists a review's FSRS state update and review-log entry atomically.
-    pub fn record_review(&self, review: &ScheduledReview) -> Result<()> {
-        let tx = self.conn.unchecked_transaction()?;
-        record_review_on(&tx, review)?;
-        tx.commit()?;
-        Ok(())
-    }
-
-    /// Records a review and advances the current card pointer in one transaction.
-    /// This is the atomic counterpart to calling [`Storage::record_review`] followed
-    /// by [`Storage::set_current_card_id`] — used by the scheduler so a crash between
-    /// the two never leaves an inconsistent "reviewed but current card unset" state.
-    pub fn record_review_and_set_current(&self, review: &ScheduledReview) -> Result<()> {
+    /// Records a review and advances the current card pointer in one atomic transaction.
+    /// Both the FSRS state update and the current-card pointer are committed together,
+    /// so a crash between the two writes never leaves an inconsistent state.
+    pub fn complete_review(&self, review: &ScheduledReview) -> Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         record_review_on(&tx, review)?;
         set_current_card_id_on(&tx, Some(review.card_id))?;
@@ -781,7 +772,7 @@ fn set_active_deck_id_on(conn: &Connection, deck_id: Option<i64>) -> Result<()> 
 }
 
 /// Persists a review's FSRS state update and its review-log entry atomically: either
-/// both writes land or neither does. See [`Storage::record_review`].
+/// both writes land or neither does. See [`Storage::complete_review`].
 fn record_review_on(conn: &Connection, review: &ScheduledReview) -> Result<()> {
     conn.execute(
         "UPDATE card_state
@@ -1312,7 +1303,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_review_and_set_current_rolls_back_on_write_error() {
+    fn test_complete_review_rolls_back_on_write_error() {
         use crate::card::Rating;
         use crate::scheduler::ScheduledReview;
 
@@ -1350,7 +1341,7 @@ mod tests {
             state: crate::card::ReviewState::Review,
         };
 
-        let result = storage.record_review_and_set_current(&review);
+        let result = storage.complete_review(&review);
         assert!(result.is_err());
 
         // card_state must be unchanged — the UPDATE was rolled back along with the
