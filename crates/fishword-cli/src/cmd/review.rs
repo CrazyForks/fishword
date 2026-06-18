@@ -4,7 +4,7 @@ use fishword_core::{
     card::Rating,
     protocol::{RateResponse, StatsResponse, StatusResponse},
     scheduler::Scheduler,
-    selector::Selector,
+    selector,
 };
 
 use crate::{
@@ -21,9 +21,7 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
         println!("No cards found. Import a deck first.");
         return Ok(());
     };
-    match Selector::select_current_in_deck(&storage, deck.id)
-        .context("failed to select current card")?
-    {
+    match selector::select_current(&storage, deck.id).context("failed to select current card")? {
         Some(selected) => print_selected_card(&storage, &selected, args, true)?,
         None if args.json => exit_json_error("no_cards", "No cards found. Import a deck first."),
         None => println!("No cards found. Import a deck first."),
@@ -157,7 +155,7 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
         anyhow::bail!("No current card in this deck. Run `fishword current` first.");
     }
     let review = Scheduler::review(&storage, card_id, rating).context("failed to rate card")?;
-    let next = Selector::select_next_in_deck(&storage, scope_deck.id)
+    let next = selector::select_next(&storage, scope_deck.id)
         .context("failed to select next card after rating")?;
     let next_deck = if let Some(ref selected) = next {
         storage

@@ -7,8 +7,6 @@ use crate::{
     storage::Storage,
 };
 
-const DEFAULT_DAILY_NEW_LIMIT: usize = 20;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelectionReason {
     Due,
@@ -22,122 +20,83 @@ pub struct SelectedCard {
     pub reason: SelectionReason,
 }
 
-pub struct Selector {
+const DEFAULT_DAILY_NEW_LIMIT: i64 = 20;
+
+/// Returns the current card for the given deck, or selects the next one if none is set.
+pub fn select_current(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
+    if let Some(card) = storage.get_current_card_in_deck(deck_id)? {
+        return Ok(Some(SelectedCard {
+            card,
+            reason: SelectionReason::Mature,
+        }));
+    }
+    select_next(storage, deck_id)
+}
+
+/// Selects the next card for the given deck and updates the current-card pointer.
+pub fn select_next(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
+    let progress = storage.progress_counts_by_deck(deck_id, DEFAULT_DAILY_NEW_LIMIT)?;
+    let daily_new_limit = progress.new_remaining as usize;
+    let current_card_id = storage
+        .get_current_card_in_deck(deck_id)?
+        .map(|card| card.id);
+    let candidates = storage.list_cards_with_state_by_deck(deck_id)?;
+    let selected = pick_card(&candidates, daily_new_limit, current_card_id);
+    storage.set_current_card_id(selected.as_ref().map(|s| s.card.id))?;
+    Ok(selected)
+}
+
+fn pick_card(
+    candidates: &[CardWithState],
     daily_new_limit: usize,
+    skip_card_id: Option<i64>,
+) -> Option<SelectedCard> {
+    let all_candidates = candidates.iter().collect::<Vec<_>>();
+    let filtered_candidates = candidates
+        .iter()
+        .filter(|candidate| Some(candidate.card.id) != skip_card_id)
+        .collect::<Vec<_>>();
+    let candidates = if filtered_candidates.is_empty() {
+        // If there is only one selectable card, keep it selected rather than
+        // returning nothing for a valid single-card deck.
+        all_candidates
+    } else {
+        filtered_candidates
+    };
+
+    let now = Utc::now();
+    let mut due = candidates
+        .iter()
+        .filter(|candidate| candidate.state.reps > 0)
+        .filter_map(|candidate| {
+            let due_at = parse_utc(&candidate.state.due).ok()?;
+            (due_at <= now).then_some(candidate)
+        })
+        .collect::<Vec<_>>();
+    due.sort_by(|left, right| {
+        retrievability(left)
+            .partial_cmp(&retrievability(right))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.state.due.cmp(&right.state.due))
+            .then_with(|| left.card.id.cmp(&right.card.id))
+    });
+    if let Some(candidate) = due.first() {
+        return Some(make_selected(candidate, SelectionReason::Due));
+    }
+
+    let new_cards = candidates
+        .iter()
+        .filter(|candidate| candidate.state.reps == 0)
+        .take(daily_new_limit)
+        .collect::<Vec<_>>();
+    if let Some(candidate) = new_cards.first() {
+        return Some(make_selected(candidate, SelectionReason::New));
+    }
+
+    None
 }
 
-impl Default for Selector {
-    fn default() -> Self {
-        Self {
-            daily_new_limit: DEFAULT_DAILY_NEW_LIMIT,
-        }
-    }
-}
-
-impl Selector {
-    pub fn select_current(storage: &Storage) -> Result<Option<SelectedCard>> {
-        if let Some(card) = storage.get_current_card()? {
-            return Ok(Some(SelectedCard {
-                card,
-                reason: SelectionReason::Mature,
-            }));
-        }
-        Self::select_next(storage)
-    }
-
-    pub fn select_current_in_deck(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
-        if let Some(card) = storage.get_current_card_in_deck(deck_id)? {
-            return Ok(Some(SelectedCard {
-                card,
-                reason: SelectionReason::Mature,
-            }));
-        }
-        Self::select_next_in_deck(storage, deck_id)
-    }
-
-    pub fn select_next(storage: &Storage) -> Result<Option<SelectedCard>> {
-        let mut selector = Self::default();
-        let progress = storage.progress_counts(selector.daily_new_limit as i64)?;
-        selector.daily_new_limit = progress.new_remaining as usize;
-        let current_card_id = storage.get_current_card_id()?;
-        let candidates = storage.list_cards_with_state()?;
-        let selected = selector.select_from_candidates(&candidates, current_card_id)?;
-        if let Some(selected) = &selected {
-            storage.set_current_card_id(Some(selected.card.id))?;
-        } else {
-            storage.set_current_card_id(None)?;
-        }
-        Ok(selected)
-    }
-
-    pub fn select_next_in_deck(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
-        let mut selector = Self::default();
-        let progress = storage.progress_counts_by_deck(deck_id, selector.daily_new_limit as i64)?;
-        selector.daily_new_limit = progress.new_remaining as usize;
-        let current_card_id = storage
-            .get_current_card_in_deck(deck_id)?
-            .map(|card| card.id);
-        let candidates = storage.list_cards_with_state_by_deck(deck_id)?;
-        let selected = selector.select_from_candidates(&candidates, current_card_id)?;
-        if let Some(selected) = &selected {
-            storage.set_current_card_id(Some(selected.card.id))?;
-        } else {
-            storage.set_current_card_id(None)?;
-        }
-        Ok(selected)
-    }
-
-    pub fn select_from_candidates(
-        &self,
-        candidates: &[CardWithState],
-        skip_card_id: Option<i64>,
-    ) -> Result<Option<SelectedCard>> {
-        let all_candidates = candidates.iter().collect::<Vec<_>>();
-        let filtered_candidates = candidates
-            .iter()
-            .filter(|candidate| Some(candidate.card.id) != skip_card_id)
-            .collect::<Vec<_>>();
-        let candidates = if filtered_candidates.is_empty() {
-            // If there is only one selectable card, `next` keeps it selected.
-            // Otherwise the command would turn a valid single-card deck into no card.
-            all_candidates
-        } else {
-            filtered_candidates
-        };
-        let now = Utc::now();
-        let mut due = candidates
-            .iter()
-            .filter(|candidate| candidate.state.reps > 0)
-            .filter_map(|candidate| {
-                let due_at = parse_utc(&candidate.state.due).ok()?;
-                (due_at <= now).then_some(candidate)
-            })
-            .collect::<Vec<_>>();
-        due.sort_by(|left, right| {
-            retrievability(left)
-                .partial_cmp(&retrievability(right))
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| left.state.due.cmp(&right.state.due))
-                .then_with(|| left.card.id.cmp(&right.card.id))
-        });
-        if let Some(candidate) = due.first() {
-            return Ok(Some(selected(candidate, SelectionReason::Due)));
-        }
-
-        let new_seen = candidates
-            .iter()
-            .filter(|candidate| candidate.state.reps == 0)
-            .take(self.daily_new_limit)
-            .collect::<Vec<_>>();
-        if let Some(candidate) = new_seen.first() {
-            return Ok(Some(selected(candidate, SelectionReason::New)));
-        }
-
-        Ok(None)
-    }
-}
-
-fn selected(candidate: &CardWithState, reason: SelectionReason) -> SelectedCard {
+fn make_selected(candidate: &CardWithState, reason: SelectionReason) -> SelectedCard {
     SelectedCard {
         card: candidate.card.clone(),
         reason,
@@ -169,21 +128,23 @@ mod tests {
         Storage::open(&path).unwrap()
     }
 
-    fn insert_card(storage: &Storage, word: &str) -> i64 {
+    fn insert_card(storage: &Storage, word: &str) -> (i64, i64) {
         let deck = storage.ensure_deck("test", None).unwrap();
-        storage.insert_card(deck.id, word, &[], &[]).unwrap().id
+        let card = storage.insert_card(deck.id, word, &[], &[]).unwrap();
+        (deck.id, card.id)
     }
 
-    fn insert_card_in_deck(storage: &Storage, deck_name: &str, word: &str) -> i64 {
+    fn insert_card_in_deck(storage: &Storage, deck_name: &str, word: &str) -> (i64, i64) {
         let deck = storage.ensure_deck(deck_name, None).unwrap();
-        storage.insert_card(deck.id, word, &[], &[]).unwrap().id
+        let card = storage.insert_card(deck.id, word, &[], &[]).unwrap();
+        (deck.id, card.id)
     }
 
     #[test]
     fn next_selects_new_card_without_review_log() {
         let storage = open_temp();
-        let card_id = insert_card(&storage, "cancel");
-        let selected = Selector::select_next(&storage).unwrap().unwrap();
+        let (deck_id, card_id) = insert_card(&storage, "cancel");
+        let selected = select_next(&storage, deck_id).unwrap().unwrap();
         assert_eq!(selected.card.id, card_id);
         assert_eq!(storage.review_log_count(card_id).unwrap(), 0);
         assert_eq!(storage.get_current_card_id().unwrap(), Some(card_id));
@@ -192,11 +153,12 @@ mod tests {
     #[test]
     fn next_skips_current_card_when_possible() {
         let storage = open_temp();
-        let first_id = insert_card(&storage, "first");
-        let second_id = insert_card(&storage, "second");
+        let (deck_id, first_id) = insert_card(&storage, "first");
+        let deck = storage.ensure_deck("test", None).unwrap();
+        let second_id = storage.insert_card(deck.id, "second", &[], &[]).unwrap().id;
 
         storage.set_current_card_id(Some(first_id)).unwrap();
-        let selected = Selector::select_next(&storage).unwrap().unwrap();
+        let selected = select_next(&storage, deck_id).unwrap().unwrap();
 
         assert_eq!(selected.card.id, second_id);
         assert_eq!(storage.review_log_count(first_id).unwrap(), 0);
@@ -206,12 +168,13 @@ mod tests {
     #[test]
     fn due_review_card_beats_new_card() {
         let storage = open_temp();
-        let due_card = insert_card(&storage, "due");
-        insert_card(&storage, "new");
+        let (deck_id, due_card) = insert_card(&storage, "due");
+        let deck = storage.ensure_deck("test", None).unwrap();
+        storage.insert_card(deck.id, "new", &[], &[]).unwrap();
 
         Scheduler::review(&storage, due_card, Rating::Again).unwrap();
         storage.set_current_card_id(None).unwrap();
-        let selected = Selector::select_next(&storage).unwrap().unwrap();
+        let selected = select_next(&storage, deck_id).unwrap().unwrap();
 
         assert_eq!(selected.card.id, due_card);
         assert_eq!(selected.reason, SelectionReason::Due);
@@ -221,10 +184,10 @@ mod tests {
     #[test]
     fn next_stops_when_no_due_or_new_quota_remains() {
         let storage = open_temp();
-        let card_id = insert_card(&storage, "known");
+        let (deck_id, card_id) = insert_card(&storage, "known");
         Scheduler::review(&storage, card_id, Rating::Easy).unwrap();
 
-        let selected = Selector::select_next(&storage).unwrap();
+        let selected = select_next(&storage, deck_id).unwrap();
         assert!(selected.is_none());
         assert_eq!(storage.get_current_card_id().unwrap(), None);
     }
@@ -232,43 +195,41 @@ mod tests {
     #[test]
     fn next_stops_after_daily_new_quota_is_used() {
         let storage = open_temp();
+        let deck = storage.ensure_deck("test", None).unwrap();
         for index in 0..20 {
-            let card_id = insert_card(&storage, &format!("word-{index}"));
+            let card_id = storage
+                .insert_card(deck.id, &format!("word-{index}"), &[], &[])
+                .unwrap()
+                .id;
             Scheduler::review(&storage, card_id, Rating::Easy).unwrap();
         }
-        insert_card(&storage, "extra-new");
+        storage.insert_card(deck.id, "extra-new", &[], &[]).unwrap();
 
-        let selected = Selector::select_next(&storage).unwrap();
+        let selected = select_next(&storage, deck.id).unwrap();
         assert!(selected.is_none());
         assert_eq!(storage.get_current_card_id().unwrap(), None);
     }
 
     #[test]
-    fn next_in_deck_only_selects_candidates_from_that_deck() {
+    fn next_only_selects_candidates_from_given_deck() {
         let storage = open_temp();
-        let first_id = insert_card_in_deck(&storage, "first", "same");
-        let second_id = insert_card_in_deck(&storage, "second", "same");
-        let second_deck = storage.get_deck_by_name("second").unwrap().unwrap();
+        let (_, first_id) = insert_card_in_deck(&storage, "first", "same");
+        let (second_deck_id, second_id) = insert_card_in_deck(&storage, "second", "same");
 
-        let selected = Selector::select_next_in_deck(&storage, second_deck.id)
-            .unwrap()
-            .unwrap();
+        let selected = select_next(&storage, second_deck_id).unwrap().unwrap();
 
         assert_eq!(selected.card.id, second_id);
         assert_ne!(selected.card.id, first_id);
     }
 
     #[test]
-    fn current_in_deck_ignores_current_card_from_other_deck() {
+    fn current_ignores_card_from_other_deck() {
         let storage = open_temp();
-        let first_id = insert_card_in_deck(&storage, "first", "first");
-        let second_id = insert_card_in_deck(&storage, "second", "second");
-        let second_deck = storage.get_deck_by_name("second").unwrap().unwrap();
+        let (_, first_id) = insert_card_in_deck(&storage, "first", "first");
+        let (second_deck_id, second_id) = insert_card_in_deck(&storage, "second", "second");
 
         storage.set_current_card_id(Some(first_id)).unwrap();
-        let selected = Selector::select_current_in_deck(&storage, second_deck.id)
-            .unwrap()
-            .unwrap();
+        let selected = select_current(&storage, second_deck_id).unwrap().unwrap();
 
         assert_eq!(selected.card.id, second_id);
     }
