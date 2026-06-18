@@ -6,6 +6,7 @@ import { showCardOverlay, showDoneOverlay } from "./overlays/card.ts";
 import { showCardDetailOverlay } from "./overlays/cardDetail.ts";
 import { showDeckManagerOverlay } from "./overlays/deckManager.ts";
 import { showStatsOverlay } from "./overlays/stats.ts";
+import { OverlayManager } from "./overlayManager.ts";
 import type { CardResponse, DeckItem, Rating, StatsResponse, StatusResponse } from "./types.ts";
 import { RATINGS } from "./types.ts";
 import { formatStatusLine, formatStatusLineMessage } from "./ui/statusLine.ts";
@@ -33,6 +34,7 @@ function commandDescription(description: string, shortcut?: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
+  const overlayManager = new OverlayManager();
   let cardOverlayHandle: OverlayHandle | null = null;
   let cardDetailHandle: OverlayHandle | null = null;
   let statsOverlayHandle: OverlayHandle | null = null;
@@ -49,10 +51,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   function applyFishwordHidden(ctx: ExtensionContext): void {
-    cardOverlayHandle?.setHidden(isFishwordHidden);
-    cardDetailHandle?.setHidden(isFishwordHidden);
-    statsOverlayHandle?.setHidden(isFishwordHidden);
-    deckManagerHandle?.setHidden(isFishwordHidden);
+    overlayManager.setAllHidden(isFishwordHidden);
     ctx.ui.setStatus("fishword", isFishwordHidden ? undefined : lastStatusLine);
   }
 
@@ -60,20 +59,17 @@ export default function (pi: ExtensionAPI) {
     isFishwordHidden = !isFishwordHidden;
     applyFishwordHidden(ctx);
 
-    if (
-      !isFishwordHidden &&
-      !cardOverlayHandle &&
-      !cardDetailHandle &&
-      !statsOverlayHandle &&
-      !deckManagerHandle
-    ) {
+    if (!isFishwordHidden && !overlayManager.hasAny()) {
       await refreshDisplay(ctx);
     }
   }
 
   function hideCardOverlay(): void {
-    cardOverlayHandle?.hide();
-    cardOverlayHandle = null;
+    if (cardOverlayHandle) {
+      overlayManager.unregister(cardOverlayHandle);
+      cardOverlayHandle.hide();
+      cardOverlayHandle = null;
+    }
     isDone = false;
     currentCardResponse = null;
     if (doneCheckTimer) {
@@ -83,18 +79,27 @@ export default function (pi: ExtensionAPI) {
   }
 
   function hideCardDetail(): void {
-    cardDetailHandle?.hide();
-    cardDetailHandle = null;
+    if (cardDetailHandle) {
+      overlayManager.unregister(cardDetailHandle);
+      cardDetailHandle.hide();
+      cardDetailHandle = null;
+    }
   }
 
   function hideStatsOverlay(): void {
-    statsOverlayHandle?.hide();
-    statsOverlayHandle = null;
+    if (statsOverlayHandle) {
+      overlayManager.unregister(statsOverlayHandle);
+      statsOverlayHandle.hide();
+      statsOverlayHandle = null;
+    }
   }
 
   function hideDeckManager(): void {
-    deckManagerHandle?.hide();
-    deckManagerHandle = null;
+    if (deckManagerHandle) {
+      overlayManager.unregister(deckManagerHandle);
+      deckManagerHandle.hide();
+      deckManagerHandle = null;
+    }
   }
 
   function showCurrentCard(ctx: ExtensionContext, cardResponse: Record<string, unknown>): void {
@@ -103,7 +108,7 @@ export default function (pi: ExtensionAPI) {
     currentCardResponse = parsed;
     showCardOverlay(ctx, parsed, (handle) => {
       cardOverlayHandle = handle;
-      handle.setHidden(isFishwordHidden);
+      overlayManager.register(handle, isFishwordHidden);
     });
   }
 
@@ -112,7 +117,7 @@ export default function (pi: ExtensionAPI) {
     isDone = true;
     showDoneOverlay(ctx, (handle) => {
       cardOverlayHandle = handle;
-      handle.setHidden(isFishwordHidden);
+      overlayManager.register(handle, isFishwordHidden);
     });
     doneCheckTimer = setInterval(() => {
       void (async () => {
@@ -225,9 +230,10 @@ export default function (pi: ExtensionAPI) {
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         statsOverlayHandle = handle;
-        handle.setHidden(isFishwordHidden);
+        overlayManager.register(handle, isFishwordHidden);
       },
       onDone: () => {
+        if (statsOverlayHandle) overlayManager.unregister(statsOverlayHandle);
         statsOverlayHandle = null;
       },
       onRefresh: () => {
@@ -249,9 +255,10 @@ export default function (pi: ExtensionAPI) {
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         deckManagerHandle = handle;
-        handle.setHidden(isFishwordHidden);
+        overlayManager.register(handle, isFishwordHidden);
       },
       onClose: () => {
+        if (deckManagerHandle) overlayManager.unregister(deckManagerHandle);
         deckManagerHandle = null;
         void refreshDisplay(ctx);
       },
@@ -263,12 +270,7 @@ export default function (pi: ExtensionAPI) {
 
   function openCardDetail(ctx: ExtensionContext): void {
     // Hide card / done overlay before showing detail
-    cardOverlayHandle?.hide();
-    cardOverlayHandle = null;
-    if (doneCheckTimer) {
-      clearInterval(doneCheckTimer);
-      doneCheckTimer = null;
-    }
+    hideCardOverlay();
     hideCardDetail();
 
     showCardDetailOverlay(ctx, {
@@ -277,15 +279,16 @@ export default function (pi: ExtensionAPI) {
       onToggleVisibility: () => toggleFishwordVisibility(ctx),
       onHandle: (handle) => {
         cardDetailHandle = handle;
-        handle.setHidden(isFishwordHidden);
+        overlayManager.register(handle, isFishwordHidden);
       },
       onClose: () => {
+        if (cardDetailHandle) overlayManager.unregister(cardDetailHandle);
         cardDetailHandle = null;
         // Restore card overlay when user dismisses detail
         if (currentCardResponse) {
           showCardOverlay(ctx, currentCardResponse, (handle) => {
             cardOverlayHandle = handle;
-            handle.setHidden(isFishwordHidden);
+            overlayManager.register(handle, isFishwordHidden);
           });
         }
       },
