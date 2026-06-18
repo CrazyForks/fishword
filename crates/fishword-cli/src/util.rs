@@ -13,6 +13,17 @@ pub fn open_storage() -> Result<Storage> {
     Storage::open(&path).with_context(|| format!("cannot open database at {}", path.display()))
 }
 
+/// Resolves which deck a command should operate on, using this priority:
+/// 1. Explicit `--deck <id>` argument
+/// 2. The currently active deck (stored in settings)
+/// 3. Auto-select: if exactly one deck exists, activates it as a side effect
+///    and returns it (convenience for single-deck users who skipped `deck use`)
+/// 4. Returns `None` if no decks exist, or an error if multiple decks exist
+///    and none is active.
+///
+/// **Note:** when case 3 applies this function writes to the database
+/// (`set_active_deck_id`), which also clears `current_card_id`. Callers that
+/// expect a pure read should ensure an active deck is set before calling.
 pub fn resolve_deck_scope(
     storage: &Storage,
     deck_id: Option<i64>,
@@ -20,7 +31,7 @@ pub fn resolve_deck_scope(
 ) -> Result<Option<Deck>> {
     if let Some(deck_id) = deck_id {
         return match storage
-            .get_deck_by_id(deck_id)
+            .get_deck_by_id(deck_id)    
             .with_context(|| format!("failed to read deck {deck_id}"))?
         {
             Some(deck) => Ok(Some(deck)),
