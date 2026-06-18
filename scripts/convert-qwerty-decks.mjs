@@ -99,12 +99,12 @@ const KAJWEB_DECKS = [
 // ── Conversion helpers ───────────────────────────────────────────────────────
 
 /**
- * Convert a single qwerty word object to a fishword.deck.v1 JSON string.
+ * Convert a single qwerty word object to a fishword.deck.v1 entry.
  * @param {{ name: string, trans: string[], usphone?: string, ukphone?: string }} word
  * @param {string[]} tags
- * @returns {string} JSON line
+ * @returns {object}
  */
-function qwertyWordToJsonlLine(word, tags) {
+function qwertyWordToDeckEntry(word, tags) {
   const entry = {
     term: word.name,
     language: "en",
@@ -118,7 +118,84 @@ function qwertyWordToJsonlLine(word, tags) {
   if (word.ukphone) pronunciation.uk = word.ukphone;
   if (Object.keys(pronunciation).length > 0) entry.pronunciation = pronunciation;
 
-  return JSON.stringify(entry);
+  return entry;
+}
+
+function mergeQwertyEntry(existing, incoming) {
+  for (const meaning of incoming.meanings) {
+    if (
+      !existing.meanings.some(
+        (item) => item.lang === meaning.lang && item.text === meaning.text,
+      )
+    ) {
+      existing.meanings.push(meaning);
+    }
+  }
+
+  for (const tag of incoming.tags) {
+    if (!existing.tags.includes(tag)) {
+      existing.tags.push(tag);
+    }
+  }
+
+  if (incoming.pronunciation) {
+    existing.pronunciation ??= {};
+    existing.pronunciation.us ??= incoming.pronunciation.us;
+    existing.pronunciation.uk ??= incoming.pronunciation.uk;
+    if (Object.keys(existing.pronunciation).length === 0) {
+      delete existing.pronunciation;
+    }
+  }
+
+  return existing;
+}
+
+function dedupeQwertyEntries(words, tags) {
+  const byTerm = new Map();
+  for (const word of words) {
+    const entry = qwertyWordToDeckEntry(word, tags);
+    const existing = byTerm.get(entry.term);
+    if (existing) {
+      mergeQwertyEntry(existing, entry);
+    } else {
+      byTerm.set(entry.term, entry);
+    }
+  }
+  return [...byTerm.values()];
+}
+
+function jsonlLines(entries) {
+  return entries.map((entry) => JSON.stringify(entry));
+}
+
+function parseJsonlEntries(content, label) {
+  return content
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch (error) {
+        throw new Error(`${label} has invalid JSON on line ${index + 1}: ${error.message}`);
+      }
+    });
+}
+
+function assertNoDuplicateTerms(entries, label) {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const entry of entries) {
+    if (seen.has(entry.term)) {
+      duplicates.add(entry.term);
+    }
+    seen.add(entry.term);
+  }
+
+  if (duplicates.size > 0) {
+    throw new Error(
+      `${label} still contains duplicate terms: ${[...duplicates].slice(0, 10).join(", ")}`,
+    );
+  }
 }
 
 function catalogId(deck) {
@@ -131,6 +208,7 @@ function deckFilename(deck) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const catalogDecks = [];
@@ -147,7 +225,9 @@ for (const deck of QWERTY_DECKS) {
   const baseTag = deck.slug;
   const tags = Array.from(new Set([baseTag, ...deck.tags]));
 
-  const lines = words.map((w) => qwertyWordToJsonlLine(w, tags));
+  const entries = dedupeQwertyEntries(words, tags);
+  assertNoDuplicateTerms(entries, catalogId(deck));
+  const lines = jsonlLines(entries);
   const filename = deckFilename(deck);
   const outPath = path.join(OUT_DIR, filename);
   fs.writeFileSync(outPath, lines.join("\n") + "\n", "utf8");
@@ -167,7 +247,9 @@ for (const deck of QWERTY_DECKS) {
     size_bytes: stat.size,
   });
 
-  console.log(`[qwerty] ${catalogId(deck)}: ${lines.length} words → ${outPath}`);
+  const removed = words.length - entries.length;
+  const dedupeSuffix = removed > 0 ? ` (${removed} duplicate rows merged)` : "";
+  console.log(`[qwerty] ${catalogId(deck)}: ${lines.length} words${dedupeSuffix} → ${outPath}`);
 }
 
 // 2. Copy kajweb JSONL files (already in fishword.deck.v1 format)
@@ -183,7 +265,9 @@ for (const deck of KAJWEB_DECKS) {
   fs.copyFileSync(srcPath, outPath);
 
   const content = fs.readFileSync(outPath, "utf8");
-  const wordCount = content.split("\n").filter((l) => l.trim()).length;
+  const entries = parseJsonlEntries(content, catalogId(deck));
+  assertNoDuplicateTerms(entries, catalogId(deck));
+  const wordCount = entries.length;
   const stat = fs.statSync(outPath);
 
   catalogDecks.push({
