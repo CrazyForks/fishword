@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: Build and deploy catalog to GitHub Pages
