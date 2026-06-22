@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use fishword_core::{error::Error as CoreError, storage::Storage};
+use fishword_core::error::Error as CoreError;
 
 use crate::protocol::{
     CardListResponse, DeckCreateResponse, DeckDeleteResponse, DeckListResponse, DeckRenameResponse,
@@ -10,14 +10,6 @@ use crate::{
     args::{CardListArgs, DeckCmd},
     util::{cmd_error, open_storage, print_human, print_json},
 };
-
-pub fn cmd_init() -> Result<()> {
-    let path = Storage::default_path().context("cannot determine data directory")?;
-    Storage::open(&path)
-        .with_context(|| format!("cannot initialize database at {}", path.display()))?;
-    print_human(format!("Initialized: {}", path.display()));
-    Ok(())
-}
 
 pub fn cmd_deck(sub: DeckCmd) -> Result<()> {
     match sub {
