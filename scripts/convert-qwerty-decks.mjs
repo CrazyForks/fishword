@@ -27,6 +27,30 @@ const OUT_DIR = path.join(ROOT, "dist/catalog");
 // publishing duplicate, lower-quality decks. Curate for quality, not breadth.
 const QWERTY_DECKS = [
   {
+    srcFile: "itVocabulary.json",
+    sourceId: "qwerty",
+    slug: "programmer-english",
+    name: "程序员英语",
+    description: "开发者常见计算机英语词汇，适合 Coding Agent 和日常开发场景",
+    tags: ["programming", "developer", "computer-english", "zh"],
+  },
+  {
+    srcFile: "linux-command.json",
+    sourceId: "qwerty",
+    slug: "linux-commands",
+    name: "Linux Commands",
+    description: "Linux 常用命令词库，适合终端、服务器和 CLI 场景",
+    tags: ["linux", "cli", "developer"],
+  },
+  {
+    srcFile: "ai_machine_learning.json",
+    sourceId: "qwerty",
+    slug: "ai-machine-learning",
+    name: "AI / Machine Learning",
+    description: "AI 与机器学习常见术语，适合 Coding Agent 和 AI 应用开发场景",
+    tags: ["ai", "machine-learning", "developer"],
+  },
+  {
     srcFile: "IELTS_3_T.json",
     sourceId: "qwerty",
     slug: "ielts",
