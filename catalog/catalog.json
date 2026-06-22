@@ -1,7 +1,68 @@
 {
   "schema": "fishword.catalog.v2",
-  "updated_at": "2026-06-18T07:23:31.346Z",
+  "updated_at": "2026-06-22T03:24:55.268Z",
   "decks": [
+    {
+      "id": "qwerty:programmer-english",
+      "slug": "programmer-english",
+      "source_id": "qwerty",
+      "name": "程序员英语",
+      "description": "开发者常见计算机英语词汇，适合 Coding Agent 和日常开发场景",
+      "language": "en",
+      "word_count": 1665,
+      "tags": [
+        "programming",
+        "developer",
+        "computer-english",
+        "zh"
+      ],
+      "source": {
+        "name": "qwerty-learner",
+        "license": "GPL-3.0"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-programmer-english.jsonl",
+      "size_bytes": 474621
+    },
+    {
+      "id": "qwerty:linux-commands",
+      "slug": "linux-commands",
+      "source_id": "qwerty",
+      "name": "Linux Commands",
+      "description": "Linux 常用命令词库，适合终端、服务器和 CLI 场景",
+      "language": "en",
+      "word_count": 575,
+      "tags": [
+        "linux",
+        "cli",
+        "developer"
+      ],
+      "source": {
+        "name": "qwerty-learner",
+        "license": "GPL-3.0"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-linux-commands.jsonl",
+      "size_bytes": 125982
+    },
+    {
+      "id": "qwerty:ai-machine-learning",
+      "slug": "ai-machine-learning",
+      "source_id": "qwerty",
+      "name": "AI / Machine Learning",
+      "description": "AI 与机器学习常见术语，适合 Coding Agent 和 AI 应用开发场景",
+      "language": "en",
+      "word_count": 725,
+      "tags": [
+        "ai",
+        "machine-learning",
+        "developer"
+      ],
+      "source": {
+        "name": "qwerty-learner",
+        "license": "GPL-3.0"
+      },
+      "url": "https://chenggou1.github.io/fishword/catalog/qwerty-ai-machine-learning.jsonl",
+      "size_bytes": 159580
+    },
     {
       "id": "qwerty:ielts",
       "slug": "ielts",
