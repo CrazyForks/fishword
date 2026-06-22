@@ -130,7 +130,7 @@
       }
 
       .hero {
-        padding: clamp(62px, 9vw, 118px) 0 clamp(42px, 6vw, 76px);
+        padding: clamp(22px, 4vw, 40px) 0 clamp(18px, 3vw, 30px);
       }
 
       .eyebrow,
@@ -152,26 +152,18 @@
       }
 
       h1 {
-        max-width: 780px;
-        margin-top: 18px;
-        font-size: clamp(44px, 7vw, 92px);
-        line-height: 0.94;
+        max-width: 860px;
+        margin-top: 10px;
+        font-size: clamp(28px, 4vw, 46px);
+        line-height: 1;
         letter-spacing: 0;
       }
 
       .hero-copy {
-        max-width: 740px;
-        margin-top: 24px;
+        max-width: 620px;
+        margin-top: 12px;
         color: #39413c;
-        font-size: clamp(18px, 2vw, 23px);
-      }
-
-      .catalog-head {
-        display: flex;
-        align-items: end;
-        justify-content: space-between;
-        gap: 24px;
-        padding: 0 0 26px;
+        font-size: 17px;
       }
 
       h2 {
@@ -204,6 +196,46 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 18px;
+      }
+
+      .deck-sections {
+        display: grid;
+        gap: clamp(34px, 6vw, 62px);
+      }
+
+      .deck-section {
+        display: grid;
+        gap: 18px;
+      }
+
+      .deck-section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+
+      .deck-section-title h3 {
+        margin-top: 6px;
+        font-size: clamp(26px, 4vw, 42px);
+        line-height: 1;
+      }
+
+      .deck-section-title p {
+        max-width: 620px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .deck-section-count {
+        min-width: 86px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 13px;
+        text-align: right;
       }
 
       .catalog-note {
@@ -400,9 +432,13 @@
           grid-template-columns: 1fr;
         }
 
-        .catalog-head {
+        .deck-section-head {
           display: grid;
           align-items: start;
+        }
+
+        .deck-section-count {
+          text-align: left;
         }
 
         .catalog-note {
@@ -482,26 +518,16 @@
       <section class="hero" aria-labelledby="hero-title">
         <div>
           <p class="eyebrow">Fishword Catalog</p>
-          <h1 id="hero-title">可下载词库，都在这里。</h1>
-          <p class="hero-copy">
-            先看有哪些词库，再复制对应的 <code>npx</code> 命令，在终端导入本地数据库。
-          </p>
+          <h1 id="hero-title">词库目录</h1>
         </div>
       </section>
 
-      <section aria-labelledby="catalog-title">
-        <div class="catalog-head">
-          <div>
-            <p class="label">可用词库</p>
-            <h2 id="catalog-title">选择词库，复制下载命令。</h2>
-          </div>
-        </div>
-
+      <section aria-label="可用词库">
         <div id="catalog-state" class="state" role="status" aria-live="polite">
           <strong>加载词库目录中</strong>
           <p>正在读取 Fishword 远程词库目录。</p>
         </div>
-        <div id="deck-grid" class="deck-grid" hidden></div>
+        <div id="deck-sections" class="deck-sections" hidden></div>
         <p class="catalog-note" id="catalog-meta" aria-live="polite">正在读取远程目录...</p>
       </section>
     </main>
@@ -516,8 +542,13 @@
         "../catalog/catalog.json",
         "https://chenggou1.github.io/fishword/catalog/catalog.json",
       ];
+      const programmerDeckIds = new Set([
+        "qwerty:programmer-english",
+        "qwerty:linux-commands",
+        "qwerty:ai-machine-learning",
+      ]);
       const accentColors = ["#496dff", "#2ca66f", "#bd7f22", "#d9604f", "#62507e"];
-      const grid = document.querySelector("#deck-grid");
+      const sections = document.querySelector("#deck-sections");
       const state = document.querySelector("#catalog-state");
       const meta = document.querySelector("#catalog-meta");
 
@@ -607,19 +638,77 @@
         `;
       }
 
+      function isProgrammerDeck(deck) {
+        const id = deck.id ?? "";
+        const tags = Array.isArray(deck.tags) ? deck.tags : [];
+        return programmerDeckIds.has(id)
+          || tags.some((tag) => [
+            "programming",
+            "developer",
+            "computer-english",
+            "linux",
+            "cli",
+            "ai",
+            "machine-learning",
+          ].includes(tag));
+      }
+
+      function renderDeckSection(section, startIndex) {
+        if (section.decks.length === 0) return "";
+        return `
+          <section class="deck-section" aria-labelledby="${escapeHtml(section.id)}">
+            <div class="deck-section-head">
+              <div class="deck-section-title">
+                <p class="label">${escapeHtml(section.label)}</p>
+                <h3 id="${escapeHtml(section.id)}">${escapeHtml(section.title)}</h3>
+                <p>${escapeHtml(section.description)}</p>
+              </div>
+              <div class="deck-section-count">${section.decks.length} 个词库</div>
+            </div>
+            <div class="deck-grid">
+              ${section.decks.map((deck, index) => renderDeck(deck, startIndex + index)).join("")}
+            </div>
+          </section>
+        `;
+      }
+
       function renderCatalog(catalog, sourceUrl) {
         const decks = Array.isArray(catalog.decks) ? catalog.decks : [];
         if (decks.length === 0) {
           state.hidden = false;
-          grid.hidden = true;
+          sections.hidden = true;
           state.innerHTML = "<strong>词库目录为空</strong><p>远程词库目录已加载，但没有可展示的词库。</p>";
           meta.textContent = "远程词库目录已加载 · 0 个词库";
           return;
         }
 
+        const programmerDecks = decks.filter(isProgrammerDeck);
+        const generalDecks = decks.filter((deck) => !isProgrammerDeck(deck));
+        const deckSections = [
+          {
+            id: "programmer-english",
+            label: "程序员英语",
+            title: "Coding Agent 时代的开发者词库。",
+            description: "面向开发者的计算机英语、终端命令和 AI 术语，适合在摸鱼和 Vibe Coding 间隙手动下载。",
+            decks: programmerDecks,
+          },
+          {
+            id: "general-english",
+            label: "考试与通用英语",
+            title: "CET、TOEFL、GRE 和常用英语词库。",
+            description: "适合考试备考、基础词汇复习和长期英语积累。",
+            decks: generalDecks,
+          },
+        ];
+
         state.hidden = true;
-        grid.hidden = false;
-        grid.innerHTML = decks.map(renderDeck).join("");
+        sections.hidden = false;
+        let startIndex = 0;
+        sections.innerHTML = deckSections.map((section) => {
+          const html = renderDeckSection(section, startIndex);
+          startIndex += section.decks.length;
+          return html;
+        }).join("");
 
         const updatedAt = formatDate(catalog.updated_at);
         const sourceLabel = sourceUrl.startsWith("http") ? "线上目录" : "本站目录";
@@ -627,7 +716,7 @@
       }
 
       function renderError(error) {
-        grid.hidden = true;
+        sections.hidden = true;
         state.hidden = false;
         state.innerHTML = `
           <strong>没有读到词库目录</strong>
