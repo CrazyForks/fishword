@@ -11,7 +11,7 @@ use crate::protocol::{ImportResponse, IMPORT_SCHEMA};
 
 use crate::{
     args::{ImportArgs, ImportCmd},
-    util::{cmd_error, open_storage, print_json},
+    util::{cmd_error, open_storage, print_human, print_json},
 };
 
 enum ImportTarget {
@@ -96,7 +96,7 @@ fn persist_import(
             skipped: summary.skipped,
         });
     }
-    println!(
+    print_human(format!(
         "Imported deck={} input={} inserted={} updated={} merged={} skipped={}",
         db_deck.name,
         summary.input_count,
@@ -104,7 +104,7 @@ fn persist_import(
         summary.updated,
         summary.merged,
         summary.skipped
-    );
+    ));
     Ok(())
 }
 

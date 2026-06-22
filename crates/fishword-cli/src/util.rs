@@ -42,9 +42,13 @@ pub fn print_selected_card(
                     args.format
                 )
             })?;
-        println!("{}", render_card(&response, format));
+        print_human(render_card(&response, format));
     }
     Ok(())
+}
+
+pub fn print_human(value: impl std::fmt::Display) {
+    println!("{value}");
 }
 
 pub fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {

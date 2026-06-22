@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 use crate::{
     args::CatalogCmd,
-    util::{cmd_error, open_storage, print_json},
+    util::{cmd_error, open_storage, print_human, print_json},
 };
 
 const DEFAULT_CATALOG_URL: &str = "https://chenggou1.github.io/fishword/catalog/catalog.json";
@@ -95,21 +95,21 @@ fn catalog_list(json: bool) -> Result<()> {
             decks,
         });
     }
-    println!(
+    print_human(format!(
         "{:<16} {:<12} {:>6}  {:<18} Tags",
         "ID", "Name", "Words", "Source"
-    );
-    println!("{}", "-".repeat(72));
+    ));
+    print_human("-".repeat(72));
     for e in &catalog.decks {
         let source = e.source.as_ref().map(|s| s.name.as_str()).unwrap_or("-");
-        println!(
+        print_human(format!(
             "{:<16} {:<12} {:>6}  {:<18} {}",
             e.id,
             e.name,
             e.word_count,
             source,
             e.tags.join(" ")
-        );
+        ));
     }
     Ok(())
 }
@@ -214,7 +214,7 @@ fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
         });
     }
 
-    println!(
+    print_human(format!(
         "Fetched deck={} input={} inserted={} updated={} merged={} skipped={}",
         import_response.deck,
         import_response.input,
@@ -222,7 +222,7 @@ fn catalog_fetch(catalog_id: &str, duplicates: &str, json: bool) -> Result<()> {
         import_response.updated,
         import_response.merged,
         import_response.skipped,
-    );
+    ));
     Ok(())
 }
 

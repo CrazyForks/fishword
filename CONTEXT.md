@@ -32,6 +32,8 @@ Supported capabilities:
 
 **Catalog** — a remote index of pre-built decks downloadable via `fishword catalog fetch`. Fetched decks become independent local decks after import.
 
+**JSON protocol** — the stable machine-readable CLI contract consumed by frontend integrations. A protocol response must not be mixed with human-readable output.
+
 **deck.v1 JSONL** — the only supported runtime import format. Other sources (e.g. kajweb, Qwerty Learner) are converted to this format offline via scripts before import.
 
 ## Core crates

@@ -8,14 +8,14 @@ use crate::protocol::{
 
 use crate::{
     args::{CardListArgs, DeckCmd},
-    util::{cmd_error, open_storage, print_json},
+    util::{cmd_error, open_storage, print_human, print_json},
 };
 
 pub fn cmd_init() -> Result<()> {
     let path = Storage::default_path().context("cannot determine data directory")?;
     Storage::open(&path)
         .with_context(|| format!("cannot initialize database at {}", path.display()))?;
-    println!("Initialized: {}", path.display());
+    print_human(format!("Initialized: {}", path.display()));
     Ok(())
 }
 
@@ -44,16 +44,16 @@ fn cmd_deck_list(json: bool) -> Result<()> {
         return print_json(&DeckListResponse::new(decks, active_deck_id));
     }
     if decks.is_empty() {
-        println!("No decks found.");
+        print_human("No decks found.");
         return Ok(());
     }
-    println!(
+    print_human(format!(
         "{:<6}  {:<6}  {:<20}  {:<14}  DESCRIPTION",
         "ACTIVE", "ID", "NAME", "CATALOG"
-    );
-    println!("{}", "-".repeat(72));
+    ));
+    print_human("-".repeat(72));
     for d in decks {
-        println!(
+        print_human(format!(
             "{:<6}  {:<6}  {:<20}  {:<14}  {}",
             if Some(d.id) == active_deck_id {
                 "*"
@@ -64,7 +64,7 @@ fn cmd_deck_list(json: bool) -> Result<()> {
             d.name,
             d.catalog_id.as_deref().unwrap_or("-"),
             d.description.as_deref().unwrap_or("")
-        );
+        ));
     }
     Ok(())
 }
@@ -76,7 +76,7 @@ fn cmd_deck_create(name: &str, description: Option<&str>, json: bool) -> Result<
             if json {
                 print_json(&DeckCreateResponse::new(&deck))?;
             } else {
-                println!("Created deck: {} (id={})", deck.name, deck.id);
+                print_human(format!("Created deck: {} (id={})", deck.name, deck.id));
             }
         }
         Err(CoreError::AlreadyExists(_)) => {
@@ -115,7 +115,7 @@ fn cmd_deck_use(deck_id: i64, json: bool) -> Result<()> {
     if json {
         print_json(&DeckUseResponse::new(&deck))?;
     } else {
-        println!("Active deck: {} ({})", deck.name, deck.id);
+        print_human(format!("Active deck: {} ({})", deck.name, deck.id));
     }
     Ok(())
 }
@@ -127,7 +127,7 @@ fn cmd_deck_delete(id: i64, json: bool) -> Result<()> {
             if json {
                 print_json(&DeckDeleteResponse::new(&deck))?;
             } else {
-                println!("Deleted deck: {} (id={})", deck.name, deck.id);
+                print_human(format!("Deleted deck: {} (id={})", deck.name, deck.id));
             }
         }
         Err(CoreError::NotFound(_)) => {
@@ -149,7 +149,7 @@ fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
             if json {
                 print_json(&DeckRenameResponse::new(&deck))?;
             } else {
-                println!("Renamed deck {} to: {}", id, deck.name);
+                print_human(format!("Renamed deck {} to: {}", id, deck.name));
             }
         }
         Err(CoreError::NotFound(_)) => {
@@ -177,13 +177,13 @@ fn cmd_deck_current() -> Result<()> {
         .get_active_deck()
         .context("failed to read active deck")?
     {
-        Some(deck) => println!(
+        Some(deck) => print_human(format!(
             "Active deck: {} ({}) {}",
             deck.name,
             deck.id,
             deck.description.as_deref().unwrap_or("")
-        ),
-        None => println!("No decks found."),
+        )),
+        None => print_human("No decks found."),
     }
     Ok(())
 }
@@ -234,23 +234,23 @@ pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
         ));
     }
     if total == 0 {
-        println!("No cards in deck '{}'.", args.deck);
+        print_human(format!("No cards in deck '{}'.", args.deck));
         return Ok(());
     }
     let page_count = (total + args.page_size - 1) / args.page_size;
     if cards.is_empty() {
-        println!(
+        print_human(format!(
             "No cards on page {} for deck '{}' ({} cards, {} pages).",
             args.page, args.deck, total, page_count
-        );
+        ));
         return Ok(());
     }
-    println!(
+    print_human(format!(
         "Deck: {} ({})  Page {}/{}  Total {}",
         deck.name, deck.id, args.page, page_count, total
-    );
-    println!("{:<6}  {:<20}  MEANINGS", "ID", "WORD");
-    println!("{}", "-".repeat(60));
+    ));
+    print_human(format!("{:<6}  {:<20}  MEANINGS", "ID", "WORD"));
+    print_human("-".repeat(60));
     for c in cards {
         let meanings_summary = c
             .meanings
@@ -264,7 +264,7 @@ pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
             })
             .collect::<Vec<_>>()
             .join("; ");
-        println!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary);
+        print_human(format!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary));
     }
     Ok(())
 }

@@ -6,7 +6,7 @@ use crate::protocol::{RateResponse, StatsResponse, StatusResponse};
 
 use crate::{
     args::{CardOutputArgs, RateArgs, StatsArgs, StatusArgs},
-    util::{cmd_error, open_storage, print_json, print_selected_card},
+    util::{cmd_error, open_storage, print_human, print_json, print_selected_card},
 };
 
 fn resolve_deck(
@@ -37,7 +37,7 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
                 "No active deck. Run `fishword deck use <deck>` first.",
             ));
         }
-        println!("No active deck. Run `fishword deck use <deck>` first.");
+        print_human("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     match selector::select_current(&storage, deck.id).context("failed to select current card")? {
@@ -50,7 +50,7 @@ pub fn cmd_current(args: &CardOutputArgs) -> Result<()> {
                     "No cards found. Import a deck first.",
                 ));
             }
-            println!("No cards found. Import a deck first.");
+            print_human("No cards found. Import a deck first.");
         }
     }
     Ok(())
@@ -66,7 +66,7 @@ pub fn cmd_status(args: &StatusArgs) -> Result<()> {
                 "No active deck. Run `fishword deck use <deck>` first.",
             ));
         }
-        println!("No active deck. Run `fishword deck use <deck>` first.");
+        print_human("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     let progress = storage
@@ -80,9 +80,9 @@ pub fn cmd_status(args: &StatusArgs) -> Result<()> {
         print_json(&response)?;
     } else {
         match args.format.as_str() {
-            "plain" => println!("{}", response.display.plain),
-            "compact" => println!("{}", response.display.compact),
-            "statusline" => println!("{}", response.display.statusline),
+            "plain" => print_human(response.display.plain),
+            "compact" => print_human(response.display.compact),
+            "statusline" => print_human(response.display.statusline),
             other => anyhow::bail!(
                 "invalid --format '{}', expected plain/compact/statusline",
                 other
@@ -109,7 +109,7 @@ pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
                 "No active deck. Run `fishword deck use <deck>` first.",
             ));
         }
-        println!("No active deck. Run `fishword deck use <deck>` first.");
+        print_human("No active deck. Run `fishword deck use <deck>` first.");
         return Ok(());
     };
     let today = Utc::now().date_naive();
@@ -121,27 +121,30 @@ pub fn cmd_stats(args: &StatsArgs) -> Result<()> {
     if args.json {
         print_json(&response)?;
     } else {
-        println!("Today: {} reviews", response.summary.reviewed_today);
+        print_human(format!(
+            "Today: {} reviews",
+            response.summary.reviewed_today
+        ));
         match response.summary.good_or_easy_rate {
-            Some(rate) => println!(
+            Some(rate) => print_human(format!(
                 "7 days: {} reviews, {}% good/easy",
                 response.summary.reviews,
                 (rate * 100.0).round() as i64
-            ),
-            None => println!(
+            )),
+            None => print_human(format!(
                 "7 days: {} reviews, no ratings yet",
                 response.summary.reviews
-            ),
+            )),
         }
-        println!(
+        print_human(format!(
             "{:<12} {:>7} {:>7} {:>7} {:>7} {:>7}",
             "DATE", "REVIEWS", "AGAIN", "HARD", "GOOD", "EASY"
-        );
+        ));
         for day in response.series {
-            println!(
+            print_human(format!(
                 "{:<12} {:>7} {:>7} {:>7} {:>7} {:>7}",
                 day.date, day.reviews, day.again, day.hard, day.good, day.easy
-            );
+            ));
         }
     }
     Ok(())
@@ -210,12 +213,12 @@ pub fn cmd_rate(args: &RateArgs) -> Result<()> {
             next_ref,
         ))?;
     } else {
-        println!(
+        print_human(format!(
             "Rated {} as {}. due={} scheduled_days={}",
             card.word, review.rating, review.due, review.scheduled_days
-        );
+        ));
         if let Some(ref selected) = next {
-            println!("Next: {}", selected.card.word);
+            print_human(format!("Next: {}", selected.card.word));
         }
     }
     Ok(())
