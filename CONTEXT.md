@@ -54,6 +54,8 @@ Contains all domain logic. Keep it free of CLI concerns.
 
 Contains the command-line interface. Keep it thin and delegate domain work to `fishword-core`.
 
+CLI command modules expose `pub fn cmd_*` handlers only at the `main.rs` dispatch seam. Inside a command module, private helpers should use local action names (e.g. `list`, `create`, `rename`) and rely on module locality rather than repeating the module name or `cmd_` prefix.
+
 ## Pi Extension domain behavior
 
 The Pi extension seeds three default decks on session start: `CET-4`, `CET-6`, `TOEFL`. Seeding is driven from the extension (`packages/pi-extension/src/defaultDecks.ts`), not from Rust `init`, because the extension knows where its npm package assets are while the Rust CLI only receives local file paths.

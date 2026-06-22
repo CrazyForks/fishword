@@ -13,20 +13,20 @@ use crate::{
 
 pub fn cmd_deck(sub: DeckCmd) -> Result<()> {
     match sub {
-        DeckCmd::List { json } => cmd_deck_list(json),
+        DeckCmd::List { json } => list(json),
         DeckCmd::Create {
             name,
             description,
             json,
-        } => cmd_deck_create(&name, description.as_deref(), json),
-        DeckCmd::Use { deck, json } => cmd_deck_use(deck, json),
-        DeckCmd::Delete { id, json } => cmd_deck_delete(id, json),
-        DeckCmd::Rename { id, new_name, json } => cmd_deck_rename(id, &new_name, json),
-        DeckCmd::Current => cmd_deck_current(),
+        } => create(&name, description.as_deref(), json),
+        DeckCmd::Use { deck, json } => use_deck(deck, json),
+        DeckCmd::Delete { id, json } => delete(id, json),
+        DeckCmd::Rename { id, new_name, json } => rename(id, &new_name, json),
+        DeckCmd::Current => current(),
     }
 }
 
-fn cmd_deck_list(json: bool) -> Result<()> {
+fn list(json: bool) -> Result<()> {
     let storage = open_storage()?;
     let decks = storage.list_decks().context("failed to list decks")?;
     let active_deck_id = storage
@@ -61,7 +61,7 @@ fn cmd_deck_list(json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_create(name: &str, description: Option<&str>, json: bool) -> Result<()> {
+fn create(name: &str, description: Option<&str>, json: bool) -> Result<()> {
     let storage = open_storage()?;
     match storage.insert_deck(name, description) {
         Ok(deck) => {
@@ -83,7 +83,7 @@ fn cmd_deck_create(name: &str, description: Option<&str>, json: bool) -> Result<
     Ok(())
 }
 
-fn cmd_deck_use(deck_id: i64, json: bool) -> Result<()> {
+fn use_deck(deck_id: i64, json: bool) -> Result<()> {
     let storage = open_storage()?;
     let deck = match storage
         .get_deck_by_id(deck_id)
@@ -112,7 +112,7 @@ fn cmd_deck_use(deck_id: i64, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_delete(id: i64, json: bool) -> Result<()> {
+fn delete(id: i64, json: bool) -> Result<()> {
     let storage = open_storage()?;
     match storage.delete_deck(id) {
         Ok(deck) => {
@@ -134,7 +134,7 @@ fn cmd_deck_delete(id: i64, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
+fn rename(id: i64, new_name: &str, json: bool) -> Result<()> {
     let storage = open_storage()?;
     match storage.update_deck_name(id, new_name) {
         Ok(deck) => {
@@ -163,7 +163,7 @@ fn cmd_deck_rename(id: i64, new_name: &str, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_deck_current() -> Result<()> {
+fn current() -> Result<()> {
     let storage = open_storage()?;
     match storage
         .get_active_deck()
