@@ -78,6 +78,7 @@ pub enum DeckCmd {
         #[arg(long)]
         json: bool,
     },
+    // Currently CLI-only; the Pi extension deck manager does not expose rename yet.
     /// Rename a deck.
     Rename {
         /// Deck id
@@ -94,6 +95,7 @@ pub enum DeckCmd {
 
 #[derive(Subcommand)]
 pub enum CardCmd {
+    // The Pi extension uses this internally for default deck seeding, but does not expose a card list UI yet.
     /// List cards in a deck.
     List(CardListArgs),
 }

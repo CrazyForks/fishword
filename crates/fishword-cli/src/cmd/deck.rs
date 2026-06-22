@@ -2,12 +2,11 @@ use anyhow::{Context, Result};
 use fishword_core::error::Error as CoreError;
 
 use crate::protocol::{
-    CardListResponse, DeckCreateResponse, DeckDeleteResponse, DeckListResponse, DeckRenameResponse,
-    DeckUseResponse,
+    DeckCreateResponse, DeckDeleteResponse, DeckListResponse, DeckRenameResponse, DeckUseResponse,
 };
 
 use crate::{
-    args::{CardListArgs, DeckCmd},
+    args::DeckCmd,
     util::{cmd_error, open_storage, print_human, print_json},
 };
 
@@ -33,7 +32,7 @@ fn list(json: bool) -> Result<()> {
         .get_active_deck_id()
         .context("failed to read active deck")?;
     if json {
-        return print_json(&DeckListResponse::new(decks, active_deck_id));
+        return print_json(DeckListResponse::new(decks, active_deck_id));
     }
     if decks.is_empty() {
         print_human("No decks found.");
@@ -66,7 +65,7 @@ fn create(name: &str, description: Option<&str>, json: bool) -> Result<()> {
     match storage.insert_deck(name, description) {
         Ok(deck) => {
             if json {
-                print_json(&DeckCreateResponse::new(&deck))?;
+                print_json(DeckCreateResponse::new(&deck))?;
             } else {
                 print_human(format!("Created deck: {} (id={})", deck.name, deck.id));
             }
@@ -105,7 +104,7 @@ fn use_deck(deck_id: i64, json: bool) -> Result<()> {
         .set_current_card_id(None)
         .with_context(|| "failed to clear current card on deck switch")?;
     if json {
-        print_json(&DeckUseResponse::new(&deck))?;
+        print_json(DeckUseResponse::new(&deck))?;
     } else {
         print_human(format!("Active deck: {} ({})", deck.name, deck.id));
     }
@@ -117,7 +116,7 @@ fn delete(id: i64, json: bool) -> Result<()> {
     match storage.delete_deck(id) {
         Ok(deck) => {
             if json {
-                print_json(&DeckDeleteResponse::new(&deck))?;
+                print_json(DeckDeleteResponse::new(&deck))?;
             } else {
                 print_human(format!("Deleted deck: {} (id={})", deck.name, deck.id));
             }
@@ -139,7 +138,7 @@ fn rename(id: i64, new_name: &str, json: bool) -> Result<()> {
     match storage.update_deck_name(id, new_name) {
         Ok(deck) => {
             if json {
-                print_json(&DeckRenameResponse::new(&deck))?;
+                print_json(DeckRenameResponse::new(&deck))?;
             } else {
                 print_human(format!("Renamed deck {} to: {}", id, deck.name));
             }
@@ -176,87 +175,6 @@ fn current() -> Result<()> {
             deck.description.as_deref().unwrap_or("")
         )),
         None => print_human("No decks found."),
-    }
-    Ok(())
-}
-
-pub fn cmd_card_list(args: &CardListArgs) -> Result<()> {
-    if args.page < 1 {
-        return Err(cmd_error(
-            args.json,
-            "invalid_page",
-            "Page must be greater than or equal to 1.",
-        ));
-    }
-    if args.page_size < 1 {
-        return Err(cmd_error(
-            args.json,
-            "invalid_page_size",
-            "Page size must be greater than or equal to 1.",
-        ));
-    }
-    let storage = open_storage()?;
-    let deck = match storage
-        .get_deck_by_id(args.deck)
-        .with_context(|| format!("failed to read deck {}", args.deck))?
-    {
-        Some(deck) => deck,
-        None => {
-            return Err(cmd_error(
-                args.json,
-                "deck_not_found",
-                &format!("Deck not found: {}", args.deck),
-            ))
-        }
-    };
-    let total = storage
-        .card_count_by_deck(deck.id)
-        .with_context(|| format!("failed to count cards for deck '{}'", args.deck))?;
-    let offset = (args.page - 1) * args.page_size;
-    let cards = storage
-        .list_cards_by_deck_paginated(deck.id, args.page_size, offset)
-        .with_context(|| format!("failed to list cards for deck '{}'", args.deck))?;
-    if args.json {
-        return print_json(&CardListResponse::new(
-            &deck,
-            cards,
-            args.page,
-            args.page_size,
-            total,
-        ));
-    }
-    if total == 0 {
-        print_human(format!("No cards in deck '{}'.", args.deck));
-        return Ok(());
-    }
-    let page_count = (total + args.page_size - 1) / args.page_size;
-    if cards.is_empty() {
-        print_human(format!(
-            "No cards on page {} for deck '{}' ({} cards, {} pages).",
-            args.page, args.deck, total, page_count
-        ));
-        return Ok(());
-    }
-    print_human(format!(
-        "Deck: {} ({})  Page {}/{}  Total {}",
-        deck.name, deck.id, args.page, page_count, total
-    ));
-    print_human(format!("{:<6}  {:<20}  MEANINGS", "ID", "WORD"));
-    print_human("-".repeat(60));
-    for c in cards {
-        let meanings_summary = c
-            .meanings
-            .iter()
-            .map(|m| {
-                if m.part_of_speech.is_empty() {
-                    m.definition.clone()
-                } else {
-                    format!("[{}] {}", m.part_of_speech, m.definition)
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("; ");
-        print_human(format!("{:<6}  {:<20}  {}", c.id, c.word, meanings_summary));
     }
     Ok(())
 }

@@ -48,11 +48,16 @@ Contains all domain logic. Keep it free of CLI concerns.
 - `importer` — deck.v1 JSONL importer
 - `scheduler` — FSRS review scheduling
 - `selector` — deck-scoped card selection policy
-- `protocol` — stable JSON DTOs for frontend consumers
+- `error` — shared core error and result types
 
 ### `crates/fishword-cli`
 
 Contains the command-line interface. Keep it thin and delegate domain work to `fishword-core`.
+
+- `args` — Clap command shape and CLI argument parsing
+- `cmd` — command handlers grouped by CLI domain (`deck`, `card`, `catalog`, `import`, `review`, `rate`, `init`)
+- `protocol` — stable JSON DTOs for frontend consumers
+- `util` — shared CLI plumbing for storage opening, JSON/human output, and protocol errors
 
 CLI command modules expose `pub fn cmd_*` handlers only at the `main.rs` dispatch seam. Inside a command module, private helpers should use local action names (e.g. `list`, `create`, `rename`) and rely on module locality rather than repeating the module name or `cmd_` prefix.
 

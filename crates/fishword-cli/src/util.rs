@@ -51,8 +51,8 @@ pub fn print_human(value: impl std::fmt::Display) {
     println!("{value}");
 }
 
-pub fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {
-    println!("{}", serde_json::to_string(value)?);
+pub fn print_json<T: serde::Serialize>(value: T) -> Result<()> {
+    println!("{}", serde_json::to_string(&value)?);
     Ok(())
 }
 
