@@ -1,31 +1,34 @@
 # Fishword
 
-> local-first 的间隔重复词汇学习工具，CLI 驱动，可嵌入任意开发环境。
+> 代码在跑，单词在长。  
+> 摸鱼和 Vibe Coding 间隙，顺手背几个单词。
 
 [![npm](https://img.shields.io/npm/v/@fishword/pi-extension)](https://www.npmjs.com/package/@fishword/pi-extension)
-[![license](https://img.shields.io/badge/license-GPL--3.0--only-blue)](#许可证)
+[![license](https://img.shields.io/badge/license-GPL--3.0--only-blue)](#license)
 
-Fishword 使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm) 算法调度复习，数据完全存储在本地 SQLite，无需联网。你可以通过 CLI 直接使用，也可以通过集成接入到你的开发环境中。
+Fishword 是一个藏在开发环境里的背单词工具。当你在等待 AI 回复、命令执行或测试完成时，它会用一张轻量词卡接住这些碎片时间。
 
-Fishword 面向 Vibe Coding 场景：当你在 Pi.dev 里等待 AI 回复、命令执行或测试完成时，可以直接在开发环境中顺手背单词。
-
-> 代码让 AI 慢慢生成，单词我先偷偷记几个。
+它使用 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm) 算法调度复习，学习数据保存在本地 SQLite 中。你可以通过 CLI 直接使用，也可以通过 Pi.dev 扩展把它嵌进日常开发流程。
 
 [查看产品展示页](https://chenggou1.github.io/fishword/)：核心演示、功能 GIF、安装入口和 CLI 说明。
 
-本项目认可并感谢 [LINUX DO](https://linux.do/) 社区。
-
 ---
 
-## 当前集成：Pi 编程助手
+## Why Fishword?
 
-### 安装
+- **为摸鱼和 Vibe Coding 间隙设计**：AI 回复、命令执行、测试运行的空档，都可以顺手复习几个单词。
+- **学习数据在本地**：词库、复习进度和学习记录保存在本地 SQLite 中，不依赖账号和云端服务。
+- **间隔重复复习**：使用 FSRS 根据你的评分动态调整复习时间，让每次评分都影响下一次出现时间。
+
+## Quick Start
+
+### Pi.dev Extension
 
 ```
 pi install npm:@fishword/pi-extension
 ```
 
-重启 Pi 后，扩展自动完成初始化——通过 Fishword catalog 下载三个默认词库：
+重启 Pi 后，扩展自动完成初始化，通过 Fishword catalog 下载三个默认词库：
 
 | 词库 | 词条数 |
 |------|--------|
@@ -35,9 +38,23 @@ pi install npm:@fishword/pi-extension
 
 默认激活 CET-4，无需任何配置，打开 Pi 即可开始背单词。
 
-### 开始背单词
+## Features
+
+- Pi.dev 内轻量词卡，不离开开发环境也能复习。
+- 老板键式隐藏 / 唤起，摸鱼时更从容。
+- 快捷键评分，适合键盘优先的复习流程。
+- 详情面板展示音标、词性、释义和例句。
+- 学习统计展示今日完成量、新词数和 7 日趋势。
+- 词库管理器支持本地词库切换、删除和远程词库下载。
+- 每个词库保留独立 FSRS 复习进度，CET-4、TOEFL 等目标互不影响。
+
+## Usage
+
+### 隐藏 / 唤起
 
 按 **`Ctrl+Shift+F`** 隐藏或唤起 Fishword：词卡可见时一键隐藏，隐藏后再按一次恢复到原本的复习视图。也可以输入 `/fw` 执行同样的隐藏/唤起操作。
+
+### 评分
 
 词卡显示后，用快捷键评分：
 
@@ -50,36 +67,43 @@ pi install npm:@fishword/pi-extension
 
 评分后自动显示下一张，FSRS 算法根据你的表现动态调整复习时间。
 
-### 详细信息面板
+### 详情面板
 
 按 **`Ctrl+Shift+I`** 打开详情面板，展示完整音标（US / UK）、词性、释义和例句。在面板内可直接评分并自动切换到下一张——支持字母快捷键 `A` / `H` / `G` / `E`，也支持原有的 `Ctrl+Shift+` 组合键。按 `Esc` 关闭面板并返回词卡视图。
 
-### 查看学习统计
+### 学习统计
 
 输入 `/fw-stats` 查看今日完成量、学习新词数和 7 日学习趋势。
-
-### 词库与算法独立性
-
-每个词库都有**独立的 FSRS 调度状态**——CET-4 的复习进度不会影响 CET-6，反之亦然。你可以同时维护多个词库，在不同学习目标之间自由切换，算法会分别记住你对每个词的掌握程度。
-
-例如：备考四级时激活 CET-4，考完后切换到 TOEFL 备考托福，两套进度互不干扰。
 
 ### 词库管理
 
 输入 `/fw-manage` 打开词库管理器，内含两个页面（左右箭头切换）：
 
 - **我的词库**：列出所有本地词库，`Enter` 切换激活词库，`d` 删除词库（需确认）。
-- **词库目录**：浏览远程词库目录，选中后按 `Enter` 下载并导入。目前提供 CET-4、CET-6、TOEFL、IELTS、GRE、SAT、Oxford 3000、Oxford 5000 等词库。
+- **词库目录**：浏览远程词库目录，选中后按 `Enter` 下载并导入。
 
+## Dictionaries
+
+每个词库都有**独立的 FSRS 调度状态**——CET-4 的复习进度不会影响 CET-6，反之亦然。你可以同时维护多个词库，在不同学习目标之间自由切换，算法会分别记住你对每个词的掌握程度。
+
+例如：备考四级时激活 CET-4，考完后切换到 TOEFL 备考托福，两套进度互不干扰。
+
+目前提供 CET-4、CET-6、TOEFL、IELTS、GRE、SAT、Oxford 3000、Oxford 5000 等词库。
 
 ---
 
-## 开发文档
+## Development
 
 如需二次开发、构建或接入新的集成，请参阅 [docs/development.md](docs/development.md)。
 
 ---
 
-## 许可证
+## Acknowledgements
+
+本项目认可并感谢 [LINUX DO](https://linux.do/) 社区。
+
+---
+
+## License
 
 [GPL-3.0-only](LICENSE)
