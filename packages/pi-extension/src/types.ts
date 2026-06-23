@@ -11,7 +11,7 @@ export type Card = {
   source?: { name: string; license?: string | null } | null;
 };
 
-export type SelectionReason = "due" | "new" | "mature";
+export type SelectionReason = "due" | "new";
 
 export type CardResponse = {
   schema: "fishword.protocol.current.v1" | "fishword.protocol.next.v1";

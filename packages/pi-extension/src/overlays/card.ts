@@ -131,8 +131,6 @@ function selectionTitle(reason: SelectionReason): string {
       return "DUE";
     case "new":
       return "NEW";
-    case "mature":
-      return "PRACTICE";
   }
 }
 

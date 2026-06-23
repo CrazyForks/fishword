@@ -324,7 +324,7 @@
       "additionalProperties": false,
       "required": ["reason"],
       "properties": {
-        "reason": { "enum": ["due", "new", "mature"] }
+        "reason": { "enum": ["due", "new"] }
       }
     },
     "review": {

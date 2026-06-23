@@ -753,7 +753,6 @@ fn selection_reason(reason: SelectionReason) -> &'static str {
     match reason {
         SelectionReason::Due => "due",
         SelectionReason::New => "new",
-        SelectionReason::Mature => "mature",
     }
 }
 
@@ -833,6 +832,26 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(value, fixture);
+    }
+
+    #[test]
+    fn current_response_serializes_due_reason() {
+        let selected = SelectedCard {
+            card: sample_card(),
+            reason: SelectionReason::Due,
+        };
+        let response = CardResponse::current(
+            &selected,
+            &sample_deck(),
+            ProgressCounts {
+                due_count: 1,
+                new_remaining: 8,
+                new_reviewed_today: 2,
+                reviewed_today: 5,
+            },
+        );
+        let value = serde_json::to_value(response).unwrap();
+        assert_eq!(value["selection"]["reason"], "due");
     }
 
     #[test]

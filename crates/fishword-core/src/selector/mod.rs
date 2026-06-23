@@ -12,7 +12,6 @@ use crate::{
 pub enum SelectionReason {
     Due,
     New,
-    Mature,
 }
 
 #[derive(Debug, Clone)]
@@ -26,10 +25,11 @@ const DEFAULT_DAILY_NEW_LIMIT: i64 = 20;
 /// Returns the current card for the given deck, or selects the next one if none is set.
 pub fn select_current(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCard>> {
     if let Some(card) = storage.get_current_card_in_deck(deck_id)? {
-        return Ok(Some(SelectedCard {
-            card,
-            reason: SelectionReason::Mature,
-        }));
+        let reason = storage
+            .get_card_state(card.id)?
+            .map(|state| reason_for_reps(state.reps))
+            .unwrap_or(SelectionReason::New);
+        return Ok(Some(SelectedCard { card, reason }));
     }
     select_next(storage, deck_id)
 }
@@ -108,6 +108,14 @@ fn make_selected(candidate: &CardWithState, reason: SelectionReason) -> Selected
     }
 }
 
+fn reason_for_reps(reps: i32) -> SelectionReason {
+    if reps == 0 {
+        SelectionReason::New
+    } else {
+        SelectionReason::Due
+    }
+}
+
 // Estimate the card's current recall probability with the FSRS forgetting
 // curve. Lower retrievability means the memory is weaker, so due cards with
 // lower values are reviewed first.
@@ -161,8 +169,34 @@ mod tests {
         let (deck_id, card_id) = insert_card(&storage, "cancel");
         let selected = select_next(&storage, deck_id).unwrap().unwrap();
         assert_eq!(selected.card.id, card_id);
+        assert_eq!(selected.reason, SelectionReason::New);
         assert_eq!(storage.review_log_count(card_id).unwrap(), 0);
         assert_eq!(storage.get_current_card_id().unwrap(), Some(card_id));
+    }
+
+    #[test]
+    fn current_keeps_new_reason_for_unreviewed_card() {
+        let storage = open_temp();
+        let (deck_id, card_id) = insert_card(&storage, "new");
+        storage.set_current_card_id(Some(card_id)).unwrap();
+
+        let selected = select_current(&storage, deck_id).unwrap().unwrap();
+
+        assert_eq!(selected.card.id, card_id);
+        assert_eq!(selected.reason, SelectionReason::New);
+    }
+
+    #[test]
+    fn current_uses_due_reason_for_reviewed_card() {
+        let storage = open_temp();
+        let (deck_id, card_id) = insert_card(&storage, "reviewed");
+        Scheduler::review(&storage, card_id, Rating::Again).unwrap();
+        storage.set_current_card_id(Some(card_id)).unwrap();
+
+        let selected = select_current(&storage, deck_id).unwrap().unwrap();
+
+        assert_eq!(selected.card.id, card_id);
+        assert_eq!(selected.reason, SelectionReason::Due);
     }
 
     #[test]
