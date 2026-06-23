@@ -40,15 +40,24 @@ pub struct CardWithState {
     pub last_reviewed_at: Option<String>,
 }
 
-/// FSRS state fields — populated in M3.
+/// FSRS state fields
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardState {
+    /// The card this scheduling state belongs to.
     pub card_id: i64,
+    /// FSRS memory stability. Higher values mean the card can wait longer before review.
+    /// New cards start at `0.0` until the first review produces a memory state.
     pub stability: f64,
+    /// FSRS memory difficulty. Higher values represent cards that are harder for the user.
+    /// New cards start at `0.0` until the first review produces a memory state.
     pub difficulty: f64,
+    /// UTC datetime string for when this card is next due for review.
     pub due: String,
+    /// Number of completed reviews for this card. `0` means the card is still new.
     pub reps: i32,
+    /// Number of review attempts rated `Again`.
     pub lapses: i32,
+    /// Current learning phase used by the scheduler and selector.
     pub state: ReviewState,
 }
 

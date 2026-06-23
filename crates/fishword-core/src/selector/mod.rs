@@ -1,4 +1,5 @@
 use chrono::Utc;
+use fsrs::{current_retrievability, MemoryState, FSRS6_DEFAULT_DECAY};
 
 use crate::{
     card::{Card, CardWithState},
@@ -46,6 +47,10 @@ pub fn select_next(storage: &Storage, deck_id: i64) -> Result<Option<SelectedCar
     Ok(selected)
 }
 
+// Applies the in-memory Selection policy after storage has loaded deck-scoped
+// candidates: avoid repeating the current card when possible, prefer due
+// reviewed cards by lowest retrievability, then introduce new cards only within
+// the remaining daily new-card limit.
 fn pick_card(
     candidates: &[CardWithState],
     daily_new_limit: usize,
@@ -103,8 +108,11 @@ fn make_selected(candidate: &CardWithState, reason: SelectionReason) -> Selected
     }
 }
 
+// Estimate the card's current recall probability with the FSRS forgetting
+// curve. Lower retrievability means the memory is weaker, so due cards with
+// lower values are reviewed first.
 fn retrievability(candidate: &CardWithState) -> f64 {
-    if candidate.state.stability <= 0.0 {
+    if candidate.state.stability <= 0.0 || candidate.state.difficulty <= 0.0 {
         return 0.0;
     }
     let Some(last_reviewed_at) = candidate.last_reviewed_at.as_deref() else {
@@ -113,8 +121,15 @@ fn retrievability(candidate: &CardWithState) -> f64 {
     let Ok(last_reviewed_at) = parse_utc(last_reviewed_at) else {
         return 0.0;
     };
-    let elapsed_days = (Utc::now() - last_reviewed_at).num_days().max(0) as f64;
-    (-elapsed_days / candidate.state.stability).exp()
+    let elapsed_days = (Utc::now() - last_reviewed_at).num_days().max(0) as f32;
+    current_retrievability(
+        MemoryState {
+            stability: candidate.state.stability as f32,
+            difficulty: candidate.state.difficulty as f32,
+        },
+        elapsed_days,
+        FSRS6_DEFAULT_DECAY,
+    ) as f64
 }
 
 #[cfg(test)]
