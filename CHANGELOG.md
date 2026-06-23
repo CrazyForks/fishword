@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.3](https://github.com/Chenggou1/fishword/compare/v0.2.2...v0.2.3) (2026-06-23)
+
+
+### Features
+
+* add programmer catalog decks ([a3a73eb](https://github.com/Chenggou1/fishword/commit/a3a73ebe2542b9866598a2c7e243e0272e931791))
+
+
+### Bug Fixes
+
+* centralize CLI output handling ([739baca](https://github.com/Chenggou1/fishword/commit/739baca6022b03da8c7d09523e10917730d72f85))
+
 ## [0.2.2](https://github.com/Chenggou1/fishword/compare/v0.2.1...v0.2.2) (2026-06-18)
 
 
