@@ -100,7 +100,12 @@ pi install npm:@fishword/pi-extension
 
 ## Acknowledgements
 
-本项目认可并感谢 [LINUX DO](https://linux.do/) 社区。
+- 感谢 [LINUX DO](https://linux.do/) 社区。
+- 感谢阮一峰老师在[《科技爱好者周刊（第 401 期）：如何赚到10亿美元》](https://www.ruanyifeng.com/blog/2026/06/weekly-issue-401.html)中推荐 Fishword。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Chenggou1/fishword&type=Date)](https://star-history.com/#Chenggou1/fishword&Date)
 
 ---
 
