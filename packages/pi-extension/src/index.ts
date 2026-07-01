@@ -297,31 +297,31 @@ export default function (pi: ExtensionAPI) {
   const fishwordActions: FishwordAction[] = [
     {
       command: "fw-manage",
-      description: "Fishword: manage decks — browse catalog or delete local decks",
+      description: "Manage decks — browse catalog or delete local decks",
       handler: openDeckManager,
     },
     {
       command: "fw-stats",
-      description: "Fishword: show learning stats overlay",
+      description: "Show learning stats overlay",
       handler: openStatsOverlay,
     },
     {
       command: "fw",
-      description: "Fishword: hide or summon review UI",
+      description: "Hide or summon review UI",
       shortcut: HIDE_OR_SUMMON_KEY,
       handler: toggleFishwordVisibility,
     },
     ...RATINGS.map(({ rating, key }): FishwordAction => ({
       command: `fw-${rating}`,
-      description: `Fishword: rate ${rating} → next card`,
+      description: `Rate ${rating} → next card`,
       shortcut: key,
       handler: (ctx) => rateAndAdvance(ctx, rating),
     })),
     {
       command: "fw-detail",
-      description: "Fishword: show detailed card info (phonetics, meanings, examples)",
+      description: "Show detailed card info (phonetics, meanings, examples)",
       shortcut: CARD_DETAIL_KEY,
-      shortcutDescription: "Fishword: show detailed card info",
+      shortcutDescription: "Show detailed card info",
       handler: openCardDetail,
     },
   ];
