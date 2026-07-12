@@ -1,5 +1,5 @@
-name: Bug report
-description: Report a reproducible problem with the Fishword Pi extension
+name: Bug 报告 / Bug report
+description: 报告 Fishword Pi 扩展中可复现的问题 / Report a reproducible problem with the Fishword Pi extension
 title: "[Bug]: "
 labels:
   - bug
@@ -8,155 +8,158 @@ body:
   - type: markdown
     attributes:
       value: |
+        感谢你报告 Fishword 问题。请提供足够的信息，帮助我们复现问题。
         Thanks for reporting a Fishword problem. Please provide enough detail for us to reproduce it.
+
+        请从日志和截图中移除 API Key、用户名、主目录路径等敏感信息。
         Remove API keys, usernames, home-directory paths, and other sensitive information from logs and screenshots.
 
   - type: input
     id: fishword-version
     attributes:
-      label: Fishword extension version
-      description: Enter the installed @fishword/pi-extension version.
-      placeholder: "For example: 0.2.2"
+      label: Fishword 扩展版本 / Extension version
+      description: 请填写已安装的 @fishword/pi-extension 版本。 / Enter the installed @fishword/pi-extension version.
+      placeholder: "例如 / For example: 0.2.2"
     validations:
       required: true
 
   - type: input
     id: pi-version
     attributes:
-      label: Pi version
-      description: Run `pi --version` and paste the result.
-      placeholder: "For example: 0.79.1"
+      label: Pi 版本 / Pi version
+      description: 请运行 `pi --version` 并粘贴结果。 / Run `pi --version` and paste the result.
+      placeholder: "例如 / For example: 0.79.1"
     validations:
       required: true
 
   - type: dropdown
     id: operating-system
     attributes:
-      label: Operating system
+      label: 操作系统 / Operating system
       options:
         - Windows
         - macOS
         - Linux
-        - Other
+        - 其他 / Other
     validations:
       required: true
 
   - type: input
     id: operating-system-version
     attributes:
-      label: Operating system version
-      description: Include the distribution and release. Architecture is optional unless the problem concerns installation or startup.
-      placeholder: "For example: Windows 11 24H2, macOS 15.5 Apple Silicon, or Ubuntu 22.04"
+      label: 操作系统版本 / Operating system version
+      description: 请包含发行版和版本号。除非问题与安装或启动有关，否则无需提供架构。 / Include the distribution and release. Architecture is optional unless the problem concerns installation or startup.
+      placeholder: "例如 / For example: Windows 11 24H2, macOS 15.5 Apple Silicon, or Ubuntu 22.04"
     validations:
       required: true
 
   - type: input
     id: terminal
     attributes:
-      label: Terminal
-      description: Which terminal application is Pi running in?
-      placeholder: "For example: Windows Terminal, iTerm2, GNOME Terminal, Kitty, or VS Code Terminal"
+      label: 终端 / Terminal
+      description: Pi 正在哪个终端应用中运行？ / Which terminal application is Pi running in?
+      placeholder: "例如 / For example: Windows Terminal, iTerm2, GNOME Terminal, Kitty, or VS Code Terminal"
     validations:
       required: true
 
   - type: input
     id: shell
     attributes:
-      label: Shell
-      description: Which shell is the terminal using?
-      placeholder: "For example: PowerShell 7, Command Prompt, Bash, Zsh, or Fish"
+      label: 命令行环境 / Shell
+      description: 终端正在使用哪个 Shell？ / Which shell is the terminal using?
+      placeholder: "例如 / For example: PowerShell 7, Command Prompt, Bash, Zsh, or Fish"
     validations:
       required: true
 
   - type: dropdown
     id: area
     attributes:
-      label: Affected area
+      label: 受影响的功能 / Affected area
       options:
-        - Installation or startup
-        - Review card
-        - Shortcuts or Boss key
-        - Rating or next-card behavior
-        - Card details
-        - Learning statistics
-        - Deck management
-        - Online catalog
-        - CLI or JSON protocol
-        - Other
+        - 安装或启动 / Installation or startup
+        - 复习卡片 / Review card
+        - 快捷键或老板键 / Shortcuts or Boss key
+        - 评分或下一张卡片 / Rating or next-card behavior
+        - 卡片详情 / Card details
+        - 学习统计 / Learning statistics
+        - 词库管理 / Deck management
+        - 在线词库目录 / Online catalog
+        - CLI 或 JSON 协议 / CLI or JSON protocol
+        - 其他 / Other
     validations:
       required: true
 
   - type: textarea
     id: description
     attributes:
-      label: Problem description
-      description: Describe what went wrong and when it started happening.
-      placeholder: Tell us what you observed.
+      label: 问题描述 / Problem description
+      description: 请描述发生了什么问题，以及问题从何时开始出现。 / Describe what went wrong and when it started happening.
+      placeholder: 请告诉我们你观察到了什么。 / Tell us what you observed.
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: Steps to reproduce
-      description: Provide the smallest sequence that consistently demonstrates the problem.
+      label: 复现步骤 / Steps to reproduce
+      description: 请提供能够稳定触发问题的最短步骤。 / Provide the smallest sequence that consistently demonstrates the problem.
       placeholder: |
-        1. Start Pi with ...
-        2. Open ...
-        3. Press ...
-        4. Observe ...
+        1. 启动 Pi…… / Start Pi with ...
+        2. 打开…… / Open ...
+        3. 按下…… / Press ...
+        4. 观察到…… / Observe ...
     validations:
       required: true
 
   - type: textarea
     id: expected-behavior
     attributes:
-      label: Expected behavior
-      placeholder: What did you expect to happen?
+      label: 预期行为 / Expected behavior
+      placeholder: 你期望发生什么？ / What did you expect to happen?
     validations:
       required: true
 
   - type: textarea
     id: actual-behavior
     attributes:
-      label: Actual behavior
-      placeholder: What happened instead?
+      label: 实际行为 / Actual behavior
+      placeholder: 实际发生了什么？ / What happened instead?
     validations:
       required: true
 
   - type: dropdown
     id: reproducibility
     attributes:
-      label: Reproducibility
+      label: 复现频率 / Reproducibility
       options:
-        - Every time
-        - Sometimes
-        - Happened once
+        - 每次都能复现 / Every time
+        - 偶尔发生 / Sometimes
+        - 只发生过一次 / Happened once
     validations:
       required: true
 
   - type: textarea
     id: logs
     attributes:
-      label: Logs, screenshots, or recordings
-      description: Paste relevant output in a code block, or attach screenshots or recordings. Prefer `--json` output when reporting CLI behavior.
+      label: 日志、截图或录屏 / Logs, screenshots, or recordings
+      description: 请用代码块粘贴相关输出，或附上截图和录屏。报告 CLI 行为时请优先提供 `--json` 输出。 / Paste relevant output in a code block, or attach screenshots or recordings. Prefer `--json` output when reporting CLI behavior.
     validations:
       required: false
 
   - type: textarea
     id: additional-context
     attributes:
-      label: Additional context
-      description: Add anything else that may help diagnose the problem.
+      label: 补充信息 / Additional context
+      description: 请添加其他可能有助于诊断问题的信息。 / Add anything else that may help diagnose the problem.
     validations:
       required: false
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Before submitting
+      label: 提交前确认 / Before submitting
       options:
-        - label: I searched the existing issues and did not find a duplicate.
+        - label: 我已搜索现有 Issue，没有发现重复问题。 / I searched the existing issues and did not find a duplicate.
           required: true
-        - label: I removed sensitive information from logs, screenshots, and recordings.
+        - label: 我已从日志、截图和录屏中移除敏感信息。 / I removed sensitive information from logs, screenshots, and recordings.
           required: true

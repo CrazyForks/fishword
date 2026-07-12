@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Fishword documentation
+  - name: Fishword 文档 / Documentation
     url: https://github.com/Chenggou1/fishword#readme
-    about: Check the documentation before opening an issue.
+    about: 提交 Issue 前请先查看文档。 / Check the documentation before opening an issue.

@@ -1,5 +1,5 @@
-name: Feature request
-description: Suggest an improvement to Fishword
+name: 功能建议 / Feature request
+description: 为 Fishword 提出改进建议 / Suggest an improvement to Fishword
 title: "[Feature]: "
 labels:
   - enhancement
@@ -8,45 +8,46 @@ body:
   - type: markdown
     attributes:
       value: |
+        感谢你帮助改进 Fishword。请先描述用户问题，以便我们评估最佳解决方案。
         Thanks for helping improve Fishword. Describe the user problem first so we can evaluate the best solution.
 
   - type: textarea
     id: problem
     attributes:
-      label: Problem or use case
-      description: What are you trying to do, and what makes it difficult today?
-      placeholder: Describe the user need and when it occurs.
+      label: 问题或使用场景 / Problem or use case
+      description: 你想完成什么？目前遇到了什么困难？ / What are you trying to do, and what makes it difficult today?
+      placeholder: 请描述用户需求及其发生场景。 / Describe the user need and when it occurs.
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed solution
-      description: Describe the behavior or workflow you would like Fishword to provide.
+      label: 建议的解决方案 / Proposed solution
+      description: 请描述你希望 Fishword 提供的行为或工作流程。 / Describe the behavior or workflow you would like Fishword to provide.
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
-      description: How do you handle this today? Are there other possible solutions?
+      label: 考虑过的替代方案 / Alternatives considered
+      description: 你目前如何处理这个问题？是否考虑过其他解决方案？ / How do you handle this today? Are there other possible solutions?
     validations:
       required: false
 
   - type: textarea
     id: additional-context
     attributes:
-      label: Additional context
-      description: Add mockups, examples, links, or other useful context.
+      label: 补充信息 / Additional context
+      description: 请添加原型图、示例、链接或其他有用信息。 / Add mockups, examples, links, or other useful context.
     validations:
       required: false
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Before submitting
+      label: 提交前确认 / Before submitting
       options:
-        - label: I searched the existing issues and did not find a duplicate request.
+        - label: 我已搜索现有 Issue，没有发现重复建议。 / I searched the existing issues and did not find a duplicate request.
           required: true
