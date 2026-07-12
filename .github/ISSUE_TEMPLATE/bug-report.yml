@@ -1,0 +1,162 @@
+name: Bug report
+description: Report a reproducible problem with the Fishword Pi extension
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a Fishword problem. Please provide enough detail for us to reproduce it.
+        Remove API keys, usernames, home-directory paths, and other sensitive information from logs and screenshots.
+
+  - type: input
+    id: fishword-version
+    attributes:
+      label: Fishword extension version
+      description: Enter the installed @fishword/pi-extension version.
+      placeholder: "For example: 0.2.2"
+    validations:
+      required: true
+
+  - type: input
+    id: pi-version
+    attributes:
+      label: Pi version
+      description: Run `pi --version` and paste the result.
+      placeholder: "For example: 0.79.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system-version
+    attributes:
+      label: Operating system version
+      description: Include the distribution and release. Architecture is optional unless the problem concerns installation or startup.
+      placeholder: "For example: Windows 11 24H2, macOS 15.5 Apple Silicon, or Ubuntu 22.04"
+    validations:
+      required: true
+
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: Which terminal application is Pi running in?
+      placeholder: "For example: Windows Terminal, iTerm2, GNOME Terminal, Kitty, or VS Code Terminal"
+    validations:
+      required: true
+
+  - type: input
+    id: shell
+    attributes:
+      label: Shell
+      description: Which shell is the terminal using?
+      placeholder: "For example: PowerShell 7, Command Prompt, Bash, Zsh, or Fish"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Installation or startup
+        - Review card
+        - Shortcuts or Boss key
+        - Rating or next-card behavior
+        - Card details
+        - Learning statistics
+        - Deck management
+        - Online catalog
+        - CLI or JSON protocol
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: Describe what went wrong and when it started happening.
+      placeholder: Tell us what you observed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest sequence that consistently demonstrates the problem.
+      placeholder: |
+        1. Start Pi with ...
+        2. Open ...
+        3. Press ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Reproducibility
+      options:
+        - Every time
+        - Sometimes
+        - Happened once
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or recordings
+      description: Paste relevant output in a code block, or attach screenshots or recordings. Prefer `--json` output when reporting CLI behavior.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add anything else that may help diagnose the problem.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and did not find a duplicate.
+          required: true
+        - label: I removed sensitive information from logs, screenshots, and recordings.
+          required: true
